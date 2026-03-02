@@ -3,6 +3,8 @@ import uproot
 import pandas as pd
 import os
 import shutil
+import subprocess
+import sys
 import opengate.contrib.spect.ge_discovery_nm670 as spect_ge_nm670
 
 # --- CONFIGURATION DE LA BOUCLE ---
@@ -10,8 +12,7 @@ NB_REPETITIONS = 5  # Nombre de fois que la simulation redémarre
 OUTPUT_FOLDER = "./output"
 FINAL_DATA_FILE = "kernel_accumulated.csv" # On accumule dans un CSV ou un ROOT à la fin
 
-def run_single_sim(iteration, activity=1, time_sec=10, nb_threads=1):
-    print(f"\n--- DÉMARRAGE DE LA SIMULATION ITERATION {iteration+1}/{NB_REPETITIONS} ---")
+def run_single_sim(activity=1, time_sec=10, nb_threads=1):
     # create the simulation
     sim = gate.Simulation()
 
@@ -227,8 +228,15 @@ def cleanup():
 all_data = []
 
 for i in range(NB_REPETITIONS):
-    # 1. Lancer
-    sim_instance = run_single_sim(i, activity=1, time_sec=100, nb_threads=1)
+    print(f"\n==========================================")
+    print(f" LOG MASTER : Lancement du run {i+1}/{NB_REPETITIONS}")
+    print(f"==========================================\n")
+
+    result = subprocess.run([sys.executable, "spect_main1.py"], check=True)
+    if result.returncode == 0:
+        print(f"\n--- Run {i+1} terminé avec succès ---")
+    else:
+        print(f"\n--- Erreur lors du run {i+1} ---")
     
     # 2. Filtrer
     try:

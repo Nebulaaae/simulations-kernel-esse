@@ -184,7 +184,7 @@ if __name__ == "__main__":
     # ---------------------------------------------------------------------
     # start simulation
     # sim.running_verbose_level = gate.EVENT
-    sim.run_timing_intervals = [[0, 1000 * sec]]
+    sim.run_timing_intervals = [[0, 10 * sec]]
     sim.run()
 
     # end
