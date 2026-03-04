@@ -79,6 +79,7 @@ if __name__ == "__main__":
     hc.output_filename = "spect.root"
     hc.attributes = [
         "EventID",
+        "Weight",  
         "TrackID",
         "PostPosition",
         "TotalEnergyDeposit",
@@ -152,7 +153,8 @@ if __name__ == "__main__":
     # source.position.type = "sphere"
     source.position.type = "point"
     # source.position.radius = 20 * mm
-    source.position.translation = [0, 0, 0 * mm]
+    z_pos = float(os.environ.get("SOURCE_Z_POS", 0))
+    source.position.translation = [0, 0, z_pos * mm]
     """
     With "iso", the gammas are emitted isotropically, so most of them will not
     been detected. In order to get more signal, you can use "momentum", meaning 
@@ -169,7 +171,7 @@ if __name__ == "__main__":
         source.activity = 100 * Bq
     else:
         sim.number_of_threads = 1
-        source.activity = (1 * MBq) / sim.number_of_threads 
+        source.activity = (0.2 * MBq) / sim.number_of_threads 
 
 
     # add stat actor
