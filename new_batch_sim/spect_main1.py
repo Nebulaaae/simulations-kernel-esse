@@ -170,7 +170,7 @@ if __name__ == "__main__":
         sim.number_of_threads = 4
         source.activity = 100 * Bq
     else:
-        sim.number_of_threads = 1
+        sim.number_of_threads = 8
         source.activity = (1 * MBq) / sim.number_of_threads 
 
 

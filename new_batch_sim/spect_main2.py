@@ -43,12 +43,6 @@ if __name__ == "__main__":
     sim.world.size = [2 * m, 2 * m, 2 * m]
     sim.world.material = "G4_AIR"
 
-    # waterbox
-    wb = sim.add_volume("Box", "waterbox")
-    wb.size = [60 * cm, 60 * cm, 30 * cm]
-    wb.material = "G4_WATER"
-    wb.color = [0, 0, 1, 1]  # blue
-
     # spect head (debug mode = only a small part of the collimator is simulation,
     # for visu mode)
     # - False: no collimator
@@ -113,26 +107,10 @@ if __name__ == "__main__":
     proj.size = [128, 128]
     proj.output_filename = "projection1.mhd"
 
-    # Acteur pour récupérer les diffusions compton dans le fantôme
-    phantom_hits = sim.add_actor("DigitizerHitsCollectionActor", "Hits_Waterbox")
-    phantom_hits.attached_to = "waterbox"
-    phantom_hits.output_filename = "phantom_scatters.root"
-
-    f = sim.add_filter("ParticleFilter", "gamma_filter")
-    f.particle = "gamma"
-    phantom_hits.filters.append(f)
-
-    phantom_hits.attributes = [
-        "EventID",
-        "PostPosition",
-        "TrackID",
-        "ProcessDefinedStep"
-    ]
-
     # Lu177 source (only the gammas)
     source = sim.add_source("GenericSource", "lu177_gammas")
     source.particle = "gamma"
-    source.attached_to = f"waterbox"
+    source.attached_to = "world"
     source.energy.type = "spectrum_discrete"
     source.energy.spectrum_weights = [
         0.001726,
@@ -170,7 +148,7 @@ if __name__ == "__main__":
         sim.number_of_threads = 4
         source.activity = 100 * Bq
     else:
-        sim.number_of_threads = 1
+        sim.number_of_threads = 8
         source.activity = (1 * MBq) / sim.number_of_threads 
 
 
