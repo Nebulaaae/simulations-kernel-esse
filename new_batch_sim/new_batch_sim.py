@@ -97,7 +97,8 @@ if nb_total_photons_air > 0:
     print(f"Kernel normalisé par {nb_total_photons_air} photons.")
 else:
     print("Aucun photon détecté dans l'air, normalisation impossible.")
+os.remove(os.path.join(OUTPUT_FOLDER, "spect.root"))
 
 # Sauvegarde au format NumPy
-np.save("esse_kernels.npy", final_kernels)
+np.save(os.path.join(OUTPUT_FOLDER, "esse_kernels.npy"), final_kernels)
 print("\nTable de kernels sauvegardée.")
