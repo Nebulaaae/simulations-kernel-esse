@@ -1,87 +1,104 @@
-import opengate as gate
 import uproot
 import pandas as pd
+import numpy as np
 import os
-import shutil
 import subprocess
 import sys
-import opengate.contrib.spect.ge_discovery_nm670 as spect_ge_nm670
 
-# --- CONFIGURATION DE LA BOUCLE ---
-NB_REPETITIONS = 100
-OUTPUT_FOLDER = "./output"
-FINAL_DATA_FILE = "kernel_accumulated.csv"
+# --- CONFIGURATION DU KERNEL ESSE ---
+PIXEL_SIZE = 0.48      # Taille de pixel (cm)
+NB_RUN = 10         # iNumDists
+MU_WATER = 0.15        # fKrnlMu0 (cm-1)
+KRNL_SIZE = 64         # iNumXYoffs (Taille de la grille du kernel)
+OUTPUT_FOLDER = os.path.abspath("./output")
+SIM_SCRIPT = os.path.abspath("./spect_main1.py") 
+WATERBOX_DEPTH = 30.0 # cm
 
+def filter_and_extract(depth):
+    scatter_path = os.path.join(OUTPUT_FOLDER, "phantom_scatters.root")
+    spect_path = os.path.join(OUTPUT_FOLDER, "spect.root")
+    
+    if not (os.path.exists(scatter_path) and os.path.exists(spect_path)):
+        return None, 0
 
-def filter_and_extract():
-    """Extrait les scatters utiles du run actuel"""
-    # 1. Charger les IDs du détecteur (Peak 208)
-    with uproot.open(f"{OUTPUT_FOLDER}/spect.root") as f:
-        df_det = f["peak208"].arrays(["EventID", "Weight"], library="pd")
-        detected_ids = df_det.drop_duplicates(['EventID'])
+    with uproot.open(spect_path) as f:
+        tree = f["peak208"]
+        df_det = tree.arrays(["EventID", "Weight"], library="pd")
+        total_photons = tree.num_entries
 
-    # 2. Filtrer le Phantom
-    waterbox_path = f"{OUTPUT_FOLDER}/phantom_scatters.root:Hits_Waterbox"
+    detected_ids = df_det[['EventID', 'Weight']].drop_duplicates('EventID')
+    waterbox_path = f"{scatter_path}:Hits_Waterbox"
     extracted_points = []
     
-    # Lecture par chunk pour la sécurité
-    for chunk in uproot.iterate(waterbox_path, ["EventID", "PostPosition_X", "PostPosition_Y", "PostPosition_Z", "ProcessDefinedStep"], library="pd"):
+    for chunk in uproot.iterate(waterbox_path, ["EventID", 'PostPosition_X', 'PostPosition_Y', 'PostPosition_Z', "ProcessDefinedStep"], library="pd"):
         chunk['ProcessDefinedStep'] = chunk['ProcessDefinedStep'].astype(str)
         mask = (chunk['ProcessDefinedStep'].str.contains('compt')) & (chunk['EventID'].isin(detected_ids['EventID']))
         useful = chunk[mask]
+        
         if not useful.empty:
-            merged = useful.merge(detected_ids, on='EventID', how='inner')
-            
+            last_hits = useful.groupby('EventID').tail(1)
+            merged = last_hits.merge(df_det, on='EventID', how='inner')
             if not merged.empty:
-                extracted_points.append(merged.groupby('EventID').tail(1))
+                merged['ESSE_Weight'] = merged['Weight'] * np.exp(MU_WATER * depth)
+                extracted_points.append(merged)
 
-    if extracted_points:
-        return pd.concat(extracted_points)
-    return pd.DataFrame()
+    if not extracted_points:
+        return None, total_photons
 
-def cleanup():
-    """Supprime les fichiers ROOT volumineux après extraction"""
-    files_to_remove = ["spect.root", "phantom_scatters.root", "projection1.mhd", "projection1.raw"]
-    for f in files_to_remove:
-        path = os.path.join(OUTPUT_FOLDER, f)
-        if os.path.exists(path):
-            os.remove(path)
-    print("Nettoyage des fichiers temporaires effectué.")
+    df_final = pd.concat(extracted_points)
+    limit = (KRNL_SIZE * PIXEL_SIZE * 10) / 2
+    
+    h, _, _ = np.histogram2d(
+        df_final['PostPosition_Y'], # Axe horizontal du schéma
+        df_final['PostPosition_Z'], # Axe vertical du schéma (vers le détecteur)
+        bins=KRNL_SIZE,
+        range=[[-limit, limit], [-limit, limit]],
+        weights=df_final['ESSE_Weight']
+    ) 
+    return h, total_photons
 
 # --- BOUCLE PRINCIPALE ---
-all_data = []
+# Initialisation de la matrice (Slices, X, Y)
+final_kernels = np.zeros((1, KRNL_SIZE, KRNL_SIZE))
 
-for i in range(NB_REPETITIONS):
-    print(f"\n==========================================")
-    print(f" LOG MASTER : Lancement du run {i+1}/{NB_REPETITIONS}")
-    print(f"==========================================\n")
+for i in range(NB_RUN):
+    print(f"\n>>> RUN {i+1}/{NB_RUN}")
 
-    result = subprocess.run([sys.executable, "spect_main1.py"], check=True)
-    if result.returncode == 0:
-        print(f"\n--- Run {i+1} terminé avec succès ---")
-    else:
-        print(f"\n--- Erreur lors du run {i+1} ---")
+    env = os.environ.copy()
+    env["SOURCE_Z_POS"] = "0"
+    depth = WATERBOX_DEPTH / 2 + float(env["SOURCE_Z_POS"]) / 10
     
-    # 2. Filtrer
     try:
-        df_batch = filter_and_extract()
+        subprocess.run([sys.executable, SIM_SCRIPT], env=env, check=True, cwd=os.path.dirname(SIM_SCRIPT))
         
-        if not df_batch.empty:
-            # Chemin du fichier final
-            final_path = os.path.join(OUTPUT_FOLDER, FINAL_DATA_FILE)
+        slice_kernel, nb_photons = filter_and_extract(depth)
+        # print(f"Photons totaux : {nb_photons}")
+        # print(f"Points de diffusion utiles : {np.sum(slice_kernel) if slice_kernel is not None else 0}")
+        if slice_kernel is not None:
+            final_kernels[0,:, :] += slice_kernel
+        os.remove(os.path.join(OUTPUT_FOLDER, "spect.root"))
+        os.remove(os.path.join(OUTPUT_FOLDER, "phantom_scatters.root"))
             
-            # Vérifier si le fichier existe déjà pour savoir s'il faut écrire l'en-tête
-            file_exists = os.path.isfile(final_path)
-            
-            # Sauvegarde immédiate
-            df_batch.to_csv(final_path, 
-                            mode='a', 
-                            index=False, 
-                            header=not file_exists,
-                            encoding='utf-8')
-            
-            print(f"Extraction : {len(df_batch)} points ajoutés au CSV.")
     except Exception as e:
-        print(f"Erreur lors de l'extraction : {e}")        
-    # 3. Nettoyer
-    cleanup()
+        print(f"Erreur au run {i}: {e}")
+
+SIM_SCRIPT_AIR = os.path.abspath("./spect_main2.py")
+subprocess.run([sys.executable, SIM_SCRIPT_AIR], env=env, check=True, cwd=os.path.dirname(SIM_SCRIPT_AIR))
+
+with uproot.open(os.path.join(OUTPUT_FOLDER, "spect.root")) as f:
+    tree = f["peak208"]
+    nb_photons_air = tree.num_entries
+print(f"\nPhotons détectés dans l'air : {nb_photons_air}")
+nb_total_photons_air = nb_photons_air * NB_RUN
+
+# Normalisation du kernel
+if nb_total_photons_air > 0:
+    final_kernels /= nb_total_photons_air
+    print(f"Kernel normalisé par {nb_total_photons_air} photons.")
+else:
+    print("Aucun photon détecté dans l'air, normalisation impossible.")
+os.remove(os.path.join(OUTPUT_FOLDER, "spect.root"))
+
+# Sauvegarde au format NumPy
+np.save(os.path.join(OUTPUT_FOLDER, "esse_kernels.npy"), final_kernels)
+print("\nTable de kernels sauvegardée.")

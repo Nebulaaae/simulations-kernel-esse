@@ -59,7 +59,9 @@ if __name__ == "__main__":
     spect, colli, crystal = spect_ge_nm670.add_spect_head(
         sim, "spect", collimator_type, debug=(sim.visu and sim.visu_type != "qt")
     )
-    spect_ge_nm670.rotate_gantry(spect, 35*cm, 0)
+    # spect_ge_nm670.rotate_gantry(spect, 35*cm, 0)
+    # spect_ge_nm670.rotate_gantry(spect, 35*cm, 90)  #attempt to put the detector on the Z a
+    spect.user_info.translation = [[0, 0, -50 * cm]]
 
     # spect digitizer channels
     channels = [
@@ -162,7 +164,7 @@ if __name__ == "__main__":
     this is not realistic.
     """
     source.direction.type = "iso"
-    source.direction.focus_dir = [0, 0, -1]
+    # source.direction.focus_dir = [0, 0, -1]
     source.direction.focus_theta = [0, 90 * gate.g4_units.deg]
     # source.direction.type = "momentum"
     # source.direction.momentum = [0, 1, 0]
@@ -170,7 +172,7 @@ if __name__ == "__main__":
         sim.number_of_threads = 4
         source.activity = 100 * Bq
     else:
-        sim.number_of_threads = 1
+        sim.number_of_threads = 8
         source.activity = (1 * MBq) / sim.number_of_threads 
 
 

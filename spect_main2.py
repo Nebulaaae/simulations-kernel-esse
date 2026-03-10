@@ -1,13 +1,14 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 import os
 import sys
 
-os.add_dll_directory(r"C:\Program Files\Geant4-11.4\bin")
-os.add_dll_directory(r"C:\Users\chloe\Bureau\ICO\ITK-build\bin")
+# os.add_dll_directory(r"C:\Program Files\Geant4-11.4\bin")
+# os.add_dll_directory(r"C:\Users\chloe\Bureau\ICO\ITK-build\bin")
 
-sys.path.insert(0, r"C:\Users\chloe\Bureau\ICO\opengate\core\build")
-sys.path.insert(0, r"C:\Users\chloe\Bureau\ICO\opengate")
+# sys.path.insert(0, r"C:\Users\chloe\Bureau\ICO\opengate\core\build")
+# sys.path.insert(0, r"C:\Users\chloe\Bureau\ICO\opengate")
 
-# 3. Chargement sécurisé du framework
 import opengate as gate
 import opengate.contrib.spect.ge_discovery_nm670 as spect_ge_nm670
 
@@ -42,12 +43,6 @@ if __name__ == "__main__":
     sim.world.size = [2 * m, 2 * m, 2 * m]
     sim.world.material = "G4_AIR"
 
-    # waterbox
-    wb = sim.add_volume("Box", "waterbox")
-    wb.size = [60 * cm, 60 * cm, 30 * cm]
-    wb.material = "G4_WATER"
-    wb.color = [0, 0, 1, 1]  # blue
-
     # spect head (debug mode = only a small part of the collimator is simulation,
     # for visu mode)
     # - False: no collimator
@@ -58,7 +53,9 @@ if __name__ == "__main__":
     spect, colli, crystal = spect_ge_nm670.add_spect_head(
         sim, "spect", collimator_type, debug=(sim.visu and sim.visu_type != "qt")
     )
-    spect_ge_nm670.rotate_gantry(spect, 35*cm, 0)
+    # spect_ge_nm670.rotate_gantry(spect, 35*cm, 0)
+    # spect_ge_nm670.rotate_gantry(spect, 35*cm, 90)  #attempt to put the detector on the Z axis
+    spect.user_info.translation = [[0, 0, -50 * cm]]
 
     # spect digitizer channels
     channels = [
@@ -78,6 +75,7 @@ if __name__ == "__main__":
     hc.output_filename = "spect.root"
     hc.attributes = [
         "EventID",
+        "Weight",  
         "TrackID",
         "PostPosition",
         "TotalEnergyDeposit",
@@ -111,26 +109,10 @@ if __name__ == "__main__":
     proj.size = [128, 128]
     proj.output_filename = "projection1.mhd"
 
-    # Acteur pour récupérer les diffusions compton dans le fantôme
-    phantom_hits = sim.add_actor("DigiAttributeLastProcessDefinedStepInVolumeActor", "Hits_Waterbox")
-    phantom_hits.attached_to = "waterbox"
-    phantom_hits.output_filename = "phantom_scatters.root"
-
-    f = sim.add_filter("ParticleFilter", "gamma_filter")
-    f.particle = "gamma"
-    phantom_hits.filters.append(f)
-
-    phantom_hits.attributes = [
-        "EventID",
-        "PostPosition",
-        "TrackID",
-        "ProcessDefinedStep"
-    ]
-
     # Lu177 source (only the gammas)
     source = sim.add_source("GenericSource", "lu177_gammas")
     source.particle = "gamma"
-    source.attached_to = f"waterbox"
+    source.attached_to = "world"
     source.energy.type = "spectrum_discrete"
     source.energy.spectrum_weights = [
         0.001726,
@@ -151,7 +133,8 @@ if __name__ == "__main__":
     # source.position.type = "sphere"
     source.position.type = "point"
     # source.position.radius = 20 * mm
-    source.position.translation = [0, 0, 0 * mm]
+    z_pos = float(os.environ.get("SOURCE_Z_POS", 0))
+    source.position.translation = [0, 0, z_pos * mm]
     """
     With "iso", the gammas are emitted isotropically, so most of them will not
     been detected. In order to get more signal, you can use "momentum", meaning 
@@ -159,7 +142,7 @@ if __name__ == "__main__":
     this is not realistic.
     """
     source.direction.type = "iso"
-    source.direction.focus_dir = [0, 0, -1]
+    # source.direction.focus_dir = [0, 0, -1]
     source.direction.focus_theta = [0, 90 * gate.g4_units.deg]
     # source.direction.type = "momentum"
     # source.direction.momentum = [0, 1, 0]
@@ -167,8 +150,8 @@ if __name__ == "__main__":
         sim.number_of_threads = 4
         source.activity = 100 * Bq
     else:
-        sim.number_of_threads = 1
-        source.activity = (1* MBq) / sim.number_of_threads 
+        sim.number_of_threads = 8
+        source.activity = (1 * MBq) / sim.number_of_threads 
 
 
     # add stat actor
@@ -183,7 +166,7 @@ if __name__ == "__main__":
     # ---------------------------------------------------------------------
     # start simulation
     # sim.running_verbose_level = gate.EVENT
-    sim.run_timing_intervals = [[0, 2000 * sec]]
+    sim.run_timing_intervals = [[0, 100 * sec]]
     sim.run()
 
     # end
