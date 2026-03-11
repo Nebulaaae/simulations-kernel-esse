@@ -11,6 +11,8 @@ import sys
 
 import opengate as gate
 import opengate.contrib.spect.ge_discovery_nm670 as spect_ge_nm670
+import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 if __name__ == "__main__":
     # create the simulation
@@ -19,8 +21,8 @@ if __name__ == "__main__":
     # main options
     sim.g4_verbose = False
     sim.visu = False
-    # sim.visu_type = "vrml"
-    sim.visu_type = "qt"
+    sim.visu_type = "vrml"
+    # sim.visu_type = "qt"
     sim.number_of_threads = 6
     sim.random_seed = "auto"
     sim.progress_bar = True
@@ -60,8 +62,14 @@ if __name__ == "__main__":
         sim, "spect", collimator_type, debug=(sim.visu and sim.visu_type != "qt")
     )
     # spect_ge_nm670.rotate_gantry(spect, 35*cm, 0)
-    # spect_ge_nm670.rotate_gantry(spect, 35*cm, 90)  #attempt to put the detector on the Z a
-    spect.user_info.translation = [[0, 0, -50 * cm]]
+    # spect_ge_nm670.rotate_gantry(spect, 0*cm, 90)
+    # spect.user_info.translation = [[0, 0, -50 * cm]]
+
+    spect.user_info.translation = [[0, 0, 50 * cm]]
+    # spect.user_info.rotation = [90 * gate.g4_units.deg]
+    # spect.user_info.rotation_axis = [np.array([0, 1, 0])]
+    rot = R.from_euler('y', 180, degrees=True).as_matrix()
+    spect.user_info.rotation = [rot]
 
     # spect digitizer channels
     channels = [
@@ -169,7 +177,7 @@ if __name__ == "__main__":
     # source.direction.type = "momentum"
     # source.direction.momentum = [0, 1, 0]
     if sim.visu:
-        sim.number_of_threads = 4
+        sim.number_of_threads = 1
         source.activity = 100 * Bq
     else:
         sim.number_of_threads = 8
