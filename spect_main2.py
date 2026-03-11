@@ -53,9 +53,9 @@ if __name__ == "__main__":
     spect, colli, crystal = spect_ge_nm670.add_spect_head(
         sim, "spect", collimator_type, debug=(sim.visu and sim.visu_type != "qt")
     )
-    # spect_ge_nm670.rotate_gantry(spect, 35*cm, 0)
-    # spect_ge_nm670.rotate_gantry(spect, 35*cm, 90)  #attempt to put the detector on the Z axis
-    spect.user_info.translation = [[0, 0, -50 * cm]]
+    spect.user_info.translation = [[0, 0, 50 * cm]]
+    rot = R.from_euler('y', 180, degrees=True).as_matrix()
+    spect.user_info.rotation = [rot]
 
     # spect digitizer channels
     channels = [

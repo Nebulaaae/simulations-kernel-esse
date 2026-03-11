@@ -66,8 +66,6 @@ if __name__ == "__main__":
     # spect.user_info.translation = [[0, 0, -50 * cm]]
 
     spect.user_info.translation = [[0, 0, 50 * cm]]
-    # spect.user_info.rotation = [90 * gate.g4_units.deg]
-    # spect.user_info.rotation_axis = [np.array([0, 1, 0])]
     rot = R.from_euler('y', 180, degrees=True).as_matrix()
     spect.user_info.rotation = [rot]
 
