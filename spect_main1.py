@@ -20,7 +20,7 @@ if __name__ == "__main__":
 
     # main options
     sim.g4_verbose = False
-    sim.visu = False
+    sim.visu = True
     sim.visu_type = "vrml"
     # sim.visu_type = "qt"
     sim.number_of_threads = 6
