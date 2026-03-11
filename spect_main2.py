@@ -11,6 +11,8 @@ import sys
 
 import opengate as gate
 import opengate.contrib.spect.ge_discovery_nm670 as spect_ge_nm670
+from scipy.spatial.transform import Rotation as R
+
 
 if __name__ == "__main__":
     # create the simulation
