@@ -7,7 +7,7 @@ import sys
 
 # --- CONFIGURATION DU KERNEL ESSE ---
 PIXEL_SIZE = 0.48      # Taille de pixel (cm)
-NB_RUN = 10         # iNumDists
+NB_RUN = 15         # iNumDists
 MU_WATER = 0.15        # fKrnlMu0 (cm-1)
 KRNL_SIZE = 64         # iNumXYoffs (Taille de la grille du kernel)
 OUTPUT_FOLDER = os.path.abspath("./output")
@@ -60,6 +60,9 @@ def filter_and_extract(depth):
 # --- BOUCLE PRINCIPALE ---
 # Initialisation de la matrice (Slices, X, Y)
 final_kernels = np.zeros((1, KRNL_SIZE, KRNL_SIZE))
+CHECKPOINT_INTERVAL = 10
+checkpoint_path = os.path.join(OUTPUT_FOLDER, "esse_kernels_checkpoint.npy")
+stats_path = os.path.join(OUTPUT_FOLDER, "checkpoint_stats.txt")
 
 for i in range(NB_RUN):
     print(f"\n>>> RUN {i+1}/{NB_RUN}")
@@ -78,7 +81,13 @@ for i in range(NB_RUN):
             final_kernels[0,:, :] += slice_kernel
         os.remove(os.path.join(OUTPUT_FOLDER, "spect.root"))
         os.remove(os.path.join(OUTPUT_FOLDER, "phantom_scatters.root"))
-            
+        if {i+1} % CHECKPOINT_INTERVAL == 0:
+            np.save(checkpoint_path, final_kernels)
+            # Sauvegarde de l'état pour pouvoir reprendre la normalisation si crash
+            with open(stats_path, "w") as f:
+                f.write(f"last_completed_run:{i+1}\n")
+            print(f"--- Checkpoint sauvegardé au run {i+1} ---")
+                
     except Exception as e:
         print(f"Erreur au run {i}: {e}")
 
