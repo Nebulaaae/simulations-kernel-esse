@@ -81,7 +81,7 @@ for i in range(NB_RUN):
             final_kernels[0,:, :] += slice_kernel
         os.remove(os.path.join(OUTPUT_FOLDER, "spect.root"))
         os.remove(os.path.join(OUTPUT_FOLDER, "phantom_scatters.root"))
-        if {i+1} % CHECKPOINT_INTERVAL == 0:
+        if (i+1) % CHECKPOINT_INTERVAL == 0:
             np.save(checkpoint_path, final_kernels)
             # Sauvegarde de l'état pour pouvoir reprendre la normalisation si crash
             with open(stats_path, "w") as f:
