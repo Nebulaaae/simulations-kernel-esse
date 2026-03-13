@@ -26,8 +26,8 @@ else:
         # On utilise global_max pour que l'intensité soit comparable visuellement
         im = ax.imshow(kernels[i], cmap='hot', interpolation='nearest', vmin=0, vmax=global_max)
         
-        ax.set_xlabel("Position Y (Transversal)")
-        ax.set_ylabel("Position Z (Profondeur vers détecteur)")
+        ax.set_xlabel("Position Y")
+        ax.set_ylabel("Position X")
         ax.set_title(f"Kernel ESSE - Coupe {i}\n(Z Simulation)")
         
         plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)

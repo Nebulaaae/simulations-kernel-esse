@@ -15,10 +15,8 @@ SIM_SCRIPT = os.path.abspath("./spect_main1.py")
 SIM_SCRIPT_AIR = os.path.abspath("./spect_main2.py")
 
 # --- CONFIGURATION DES SLICES ---
-# On définit 30 profondeurs (Slices) réparties sur les 30cm du fantôme
-NB_SLICES = 10
-RUNS_PER_SLICE = 1 
-# z_positions en mm pour OpenGATE (de -140mm à 140mm)
+NB_SLICES = 20
+RUNS_PER_SLICE = 30 
 Z_POSITIONS = np.linspace(-140, 140, NB_SLICES) 
 
 CHECKPOINT_INTERVAL = 10
@@ -59,8 +57,8 @@ def filter_and_extract(depth):
     limit = (KRNL_SIZE * PIXEL_SIZE * 10) / 2
     
     h, _, _ = np.histogram2d(
-        df_final['PostPosition_Y'], # Axe horizontal du schéma
-        df_final['PostPosition_Z'], # Axe vertical du schéma (vers le détecteur)
+        df_final['PostPosition_X'],
+        df_final['PostPosition_Y'],
         bins=KRNL_SIZE,
         range=[[-limit, limit], [-limit, limit]],
         weights=df_final['ESSE_Weight']
@@ -68,7 +66,7 @@ def filter_and_extract(depth):
     return h, total_photons
 
 # --- INITIALISATION ---
-final_kernels = np.zeros((NB_SLICES, KRNL_SIZE, KRNL_SIZE))
+final_kernels = np.zeros((NB_SLICES, KRNL_SIZE, KRNL_SIZE)) # todo : je crois que ça doit être stocké comme x, z, y (voir slide 39)
 
 # --- NORMALISATION DANS L'AIR ---
 print("\n>>> Phase de normalisation : Simulation dans l'AIR")
