@@ -12,7 +12,7 @@ if not os.path.exists(file_path):
 else:
     kernels = np.load(file_path)
     
-    num_slices = kernels.shape[0]
+    num_slices = kernels.shape[1]
     print(f"Dimensions de la matrice : {kernels.shape}")
     print(f"Nombre de tranches à traiter : {num_slices}")
 
@@ -24,7 +24,7 @@ else:
         
         # Affichage de la coupe i
         # On utilise global_max pour que l'intensité soit comparable visuellement
-        im = ax.imshow(kernels[i], cmap='hot', interpolation='nearest', vmin=0, vmax=global_max)
+        im = ax.imshow(kernels[:, i, :], cmap='hot', interpolation='nearest', vmin=0, vmax=global_max)
         
         ax.set_xlabel("Position Y")
         ax.set_ylabel("Position X")

@@ -4,19 +4,20 @@ import numpy as np
 import os
 import subprocess
 import sys
+from scipy.ndimage import gaussian_filter
 
 # --- CONFIGURATION DU KERNEL ESSE ---
 PIXEL_SIZE = 0.48      # cm
-MU_WATER = 0.15        # cm-1 (fKrnlMu0) [cite: 367]
-KRNL_SIZE = 64         # iNumXYoffs [cite: 366]
+MU_WATER = 0.15        # cm-1 (fKrnlMu0)
+KRNL_SIZE = 64         # iNumXYoffs
 WATERBOX_DEPTH = 30.0  # cm
 OUTPUT_FOLDER = os.path.abspath("./output")
 SIM_SCRIPT = os.path.abspath("./spect_main1.py")
 SIM_SCRIPT_AIR = os.path.abspath("./spect_main2.py")
 
 # --- CONFIGURATION DES SLICES ---
-NB_SLICES = 20
-RUNS_PER_SLICE = 30 
+NB_SLICES = 5
+RUNS_PER_SLICE = 7
 Z_POSITIONS = np.linspace(-140, 140, NB_SLICES) 
 
 CHECKPOINT_INTERVAL = 10
@@ -63,15 +64,17 @@ def filter_and_extract(depth):
         range=[[-limit, limit], [-limit, limit]],
         weights=df_final['ESSE_Weight']
     ) 
+    # h = gaussian_filter(h, sigma=1.0) 
     return h, total_photons
 
 # --- INITIALISATION ---
-final_kernels = np.zeros((NB_SLICES, KRNL_SIZE, KRNL_SIZE)) # todo : je crois que ça doit être stocké comme x, z, y (voir slide 39)
+# final_kernels = np.zeros((NB_SLICES, KRNL_SIZE, KRNL_SIZE)) # todo : je crois que ça doit être stocké comme x, z, y (voir slide 39)
+final_kernels = np.zeros((KRNL_SIZE, NB_SLICES, KRNL_SIZE))
 
 # --- NORMALISATION DANS L'AIR ---
 print("\n>>> Phase de normalisation : Simulation dans l'AIR")
 nb_air_total = 0
-AIR_RUNS = 20   # Plusieurs runs pour réduire la variance statistique
+AIR_RUNS = 2   # Plusieurs runs pour réduire la variance statistique
 
 for a in range(AIR_RUNS):
     env = os.environ.copy()
@@ -102,7 +105,7 @@ for s_idx, z_mm in enumerate(Z_POSITIONS):
             
             h_slice, _ = filter_and_extract(depth)
             if h_slice is not None:
-                final_kernels[s_idx, :, :] += h_slice
+                final_kernels[:, s_idx, :] += h_slice
             
             # Nettoyage
             for f in ["spect.root", "phantom_scatters.root"]:
@@ -118,7 +121,7 @@ for s_idx, z_mm in enumerate(Z_POSITIONS):
 
 # --- NORMALISATION FINALE ET SAUVEGARDE ---
 if norm_factor > 0:
-    final_kernels /= norm_factor
+    final_kernels /= (norm_factor)
     np.save(os.path.join(OUTPUT_FOLDER, "esse_kernels_3d.npy"), final_kernels)
     print("\nKernels ESSE 3D générés et normalisés avec succès.")
 else:
