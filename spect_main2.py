@@ -52,6 +52,7 @@ if __name__ == "__main__":
     # - megp: holes length 58 mm, diam 3 mm,   septal thickness : 1.05 mm
     # - hegp: holes length 66 mm, diam 4 mm,   septal thickness : 1.8 mm
     collimator_type = "megp"
+    # collimator_type = False
     spect, colli, crystal = spect_ge_nm670.add_spect_head(
         sim, "spect", collimator_type, debug=(sim.visu and sim.visu_type != "qt")
     )

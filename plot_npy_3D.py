@@ -5,6 +5,8 @@ import os
 # --- CONFIGURATION ---
 file_path = "./output/esse_kernels_3d.npy"
 output_plots_dir = "./output/plots_kernels"
+# file_path = "./output/esse_amu_kernels_3d.npy"
+# output_plots_dir = "./output/plots_kernels_amu"
 os.makedirs(output_plots_dir, exist_ok=True)
 
 if not os.path.exists(file_path):
@@ -15,6 +17,7 @@ else:
     num_slices = kernels.shape[1]
     print(f"Dimensions de la matrice : {kernels.shape}")
     print(f"Nombre de tranches à traiter : {num_slices}")
+    print(f"Somme totale des valeurs dans les kernels : {np.sum(kernels):.4e}")
 
     # Fixer la valeur max pour avoir la même échelle de couleur sur toutes les images
     global_max = np.max(kernels)
