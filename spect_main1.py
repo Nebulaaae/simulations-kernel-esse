@@ -57,8 +57,8 @@ if __name__ == "__main__":
     # - lehr: holes length 35 mm, diam 1.5 mm, septal thickness : 0.2 mm
     # - megp: holes length 58 mm, diam 3 mm,   septal thickness : 1.05 mm
     # - hegp: holes length 66 mm, diam 4 mm,   septal thickness : 1.8 mm
-    collimator_type = "megp"
-    # collimator_type = False
+    # collimator_type = "megp"
+    collimator_type = False
     spect, colli, crystal = spect_ge_nm670.add_spect_head(
         sim, "spect", collimator_type, debug=(sim.visu and sim.visu_type != "qt")
     )
@@ -97,6 +97,7 @@ if __name__ == "__main__":
         "LocalTime",
         "StepLength",
         "TrackLength",
+        "PostDirection"
     ]
     # list of attributes :https://opengate-python.readthedocs.io/en/latest/user_guide.html#actors-and-filters
 
@@ -136,7 +137,8 @@ if __name__ == "__main__":
         "PostPosition",
         "TrackID",
         "ProcessDefinedStep",
-        "KineticEnergy"
+        "KineticEnergy",
+        "PostDirection"
     ]
 
     # Lu177 source (only the gammas)

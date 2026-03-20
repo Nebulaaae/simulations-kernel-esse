@@ -19,17 +19,16 @@ SIM_SCRIPT_AIR = os.path.abspath("./spect_main2.py")
 def get_mu_water(energy_kev):
     """
     Interpolation simplifiée du mu de l'eau (cm-1).
-    À affiner avec des données NIST/XCOM pour plus de précision.
+    todo : remplacer par une vraie fonction d'interpolation à partir de données réelles
     """
-    # Exemple de fit linéaire/polynomial local pour la zone 60-140 keV
-    # mu(E) augmente quand l'énergie diminue (diffusion Compton)
+
     energies = np.array([50, 100, 150, 208, 250, 322])
     mus = np.array([0.22, 0.17, 0.15, 0.135, 0.125, 0.118])
     return np.interp(energy_kev, energies, mus)
 
 # --- CONFIGURATION DES SLICES ---
-NB_SLICES = 1
-RUNS_PER_SLICE = 1
+NB_SLICES = 5
+RUNS_PER_SLICE = 7
 Z_POSITIONS = np.linspace(-140, 140, NB_SLICES) 
 
 CHECKPOINT_INTERVAL = 10
@@ -52,9 +51,11 @@ def filter_and_extract(depth):
     waterbox_path = f"{scatter_path}:Hits_Waterbox"
     extracted_points = []
     
-    for chunk in uproot.iterate(waterbox_path, ["EventID", 'PostPosition_X', 'PostPosition_Y', 'PostPosition_Z', "ProcessDefinedStep", "KineticEnergy"], library="pd"):
+    for chunk in uproot.iterate(waterbox_path, ["EventID", 'PostPosition_X', 'PostPosition_Y', 
+                                                'PostPosition_Z', "ProcessDefinedStep", "KineticEnergy", "PostDirection_Z"], library="pd"):
         chunk['ProcessDefinedStep'] = chunk['ProcessDefinedStep'].astype(str)
-        mask = (chunk['ProcessDefinedStep'].str.contains('compt')) & (chunk['EventID'].isin(detected_ids['EventID']))
+        mask = (chunk['ProcessDefinedStep'].str.contains('compt')) & (chunk['EventID'].isin(detected_ids['EventID']))& \
+           (np.abs(chunk['PostDirection_Z']) > 0.999)
         useful = chunk[mask]
         
         if not useful.empty:
@@ -85,7 +86,7 @@ def filter_and_extract(depth):
     h_delta_mu_sum, _, _ = np.histogram2d(
         df_final['PostPosition_X'], df_final['PostPosition_Y'],
         bins=KRNL_SIZE, range=[[-limit, limit], [-limit, limit]],
-        weights=df_final['delta_mu_weighted'] * np.exp(MU_WATER * depth)
+        weights=df_final['delta_mu_weighted']
     )
 
     print("\n" + "="*30)
@@ -119,32 +120,6 @@ def filter_and_extract(depth):
     else:
         print(">>> ERREUR CRITIQUE : Aucun point n'a été extrait (df_final vide).")
 
-    # 3. GÉNÉRATION DE L'IMAGE DE CONTRÔLE
-    print("\n>>> Génération de l'image de diagnostic : diag_esse.png")
-    plt.figure(figsize=(15, 5))
-    # Affichage du Kernel de base (Log scale pour voir les queues de diffusion)
-    plt.subplot(1, 3, 1)
-    plt.imshow(final_kernels[:, NB_SLICES//2, :], cmap='hot')
-    plt.title("Kernel Diffusion (Poids)")
-    plt.colorbar()
-
-    # Affichage du Numérateur (pour voir s'il y a de l'info avant division)
-    plt.subplot(1, 3, 2)
-    plt.imshow(amu_kernels_accumulation[:, NB_SLICES//2, :], cmap='magma')
-    plt.title("Numérateur Delta Mu")
-    plt.colorbar()
-
-    # Affichage du Ratio Final (amu)
-    plt.subplot(1, 3, 3)
-    plt.imshow(final_amu_kernels[:, NB_SLICES//2, :], cmap='viridis')
-    plt.title("Kernel Delta Mu Final")
-    plt.colorbar()
-
-    plt.tight_layout()
-    plt.savefig(os.path.join(OUTPUT_FOLDER, "diag_esse.png"))
-    print(f"Image sauvegardée dans : {os.path.join(OUTPUT_FOLDER, 'diag_esse.png')}")
-
-
     return h_weight_sum, h_delta_mu_sum, total_photons
 
 # --- INITIALISATION ---
@@ -162,9 +137,16 @@ for a in range(AIR_RUNS):
     env = os.environ.copy()
     env["SOURCE_Z_POS"] = "0"
     subprocess.run([sys.executable, SIM_SCRIPT_AIR], env=env, check=True, cwd=os.path.dirname(SIM_SCRIPT_AIR))
-    with uproot.open(os.path.join(OUTPUT_FOLDER, "spect.root")) as f:
-        nb_air_total += f["peak208"].num_entries
-    os.remove(os.path.join(OUTPUT_FOLDER, "spect.root"))
+    spect_air_path = os.path.join(OUTPUT_FOLDER, "spect.root")
+    with uproot.open(spect_air_path) as f:
+        tree = f["peak208"]
+        directions_z = tree.arrays(["PostDirection_Z"], library="pd")
+        count_filtered = (np.abs(directions_z['PostDirection_Z']) > 0.999).sum()
+        nb_air_total += count_filtered
+        print(f"  Run AIR {a+1}: {count_filtered} photons perpendiculaires retenus.")
+
+    if os.path.exists(spect_air_path):
+        os.remove(spect_air_path)
 
 # Facteur de normalisation par run 
 norm_factor = (nb_air_total / AIR_RUNS) * RUNS_PER_SLICE
@@ -207,6 +189,31 @@ for s_idx, z_mm in enumerate(Z_POSITIONS):
         out=np.zeros_like(amu_kernels_accumulation[:, s_idx, :]), 
         where=final_kernels[:, s_idx, :] != 0
     )
+
+# 3. GÉNÉRATION DE L'IMAGE DE CONTRÔLE
+print("\n>>> Génération de l'image de diagnostic : diag_esse.png")
+plt.figure(figsize=(15, 5))
+# Affichage du Kernel de base (Log scale pour voir les queues de diffusion)
+plt.subplot(1, 3, 1)
+plt.imshow(final_kernels[:, NB_SLICES//2, :], cmap='hot')
+plt.title("Kernel Diffusion (Poids)")
+plt.colorbar()
+
+# Affichage du Numérateur (pour voir s'il y a de l'info avant division)
+plt.subplot(1, 3, 2)
+plt.imshow(amu_kernels_accumulation[:, NB_SLICES//2, :], cmap='magma')
+plt.title("Numérateur Delta Mu")
+plt.colorbar()
+
+# Affichage du Ratio Final (amu)
+plt.subplot(1, 3, 3)
+plt.imshow(final_amu_kernels[:, NB_SLICES//2, :], cmap='viridis')
+plt.title("Kernel Delta Mu Final")
+plt.colorbar()
+
+plt.tight_layout()
+plt.savefig(os.path.join(OUTPUT_FOLDER, "diag_esse.png"))
+print(f"Image sauvegardée dans : {os.path.join(OUTPUT_FOLDER, 'diag_esse.png')}")
 
 # --- NORMALISATION FINALE ET SAUVEGARDE ---
 if norm_factor > 0:
