@@ -27,8 +27,8 @@ def get_mu_water(energy_kev):
     return np.interp(energy_kev, energies, mus)
 
 # --- CONFIGURATION DES SLICES ---
-NB_SLICES = 5
-RUNS_PER_SLICE = 7
+NB_SLICES = 20
+RUNS_PER_SLICE = 50
 Z_POSITIONS = np.linspace(-140, 140, NB_SLICES) 
 
 CHECKPOINT_INTERVAL = 10
@@ -89,36 +89,36 @@ def filter_and_extract(depth):
         weights=df_final['delta_mu_weighted']
     )
 
-    print("\n" + "="*30)
-    print("RAPPORT DE DIAGNOSTIC ESSE")
-    print("="*30)
+    # print("\n" + "="*30)
+    # print("RAPPORT DE DIAGNOSTIC ESSE")
+    # print("="*30)
 
-    # 1. Vérification des volumes
-    print(f"Somme totale final_kernels: {np.sum(final_kernels):.2e}")
-    print(f"Somme totale amu_accumulation: {np.sum(amu_kernels_accumulation):.2e}")
-    print(f"Valeur max final_amu_kernels: {np.max(final_amu_kernels):.6f}")
+    # # 1. Vérification des volumes
+    # print(f"Somme totale final_kernels: {np.sum(final_kernels):.2e}")
+    # print(f"Somme totale amu_accumulation: {np.sum(amu_kernels_accumulation):.2e}")
+    # print(f"Valeur max final_amu_kernels: {np.max(final_amu_kernels):.6f}")
 
-    # 2. Analyse des données brutes (si des points ont été extraits)
-    if 'df_final' in locals() and not df_final.empty:
-        print(f"\nNombre de photons diffusés retenus: {len(df_final)}")
+    # # 2. Analyse des données brutes (si des points ont été extraits)
+    # if 'df_final' in locals() and not df_final.empty:
+    #     print(f"\nNombre de photons diffusés retenus: {len(df_final)}")
         
-        # Vérification des énergies
-        e_min = df_final['KineticEnergy'].min()
-        e_max = df_final['KineticEnergy'].max()
-        print(f"Plage Energie détectée (MeV): {e_min:.4f} - {e_max:.4f}")
+    #     # Vérification des énergies
+    #     e_min = df_final['KineticEnergy'].min()
+    #     e_max = df_final['KineticEnergy'].max()
+    #     print(f"Plage Energie détectée (MeV): {e_min:.4f} - {e_max:.4f}")
         
-        # Vérification de l'interpolation mu
-        mu_vals = df_final['mu_i'].unique()
-        print(f"Valeurs de mu_i calculées: {mu_vals}")
+    #     # Vérification de l'interpolation mu
+    #     mu_vals = df_final['mu_i'].unique()
+    #     print(f"Valeurs de mu_i calculées: {mu_vals}")
         
-        delta_mu = df_final['mu_i'] - MU_WATER
-        print(f"Delta_mu moyen: {delta_mu.mean():.6f}")
+    #     delta_mu = df_final['mu_i'] - MU_WATER
+    #     print(f"Delta_mu moyen: {delta_mu.mean():.6f}")
         
-        if np.allclose(delta_mu, 0):
-            print(">>> ERREUR CRITIQUE : Tous les delta_mu sont à zéro.")
-            print(f"    Vérifiez si KineticEnergy*1000 ({e_max*1000:.1f} keV) tombe hors de [60, 140].")
-    else:
-        print(">>> ERREUR CRITIQUE : Aucun point n'a été extrait (df_final vide).")
+    #     if np.allclose(delta_mu, 0):
+    #         print(">>> ERREUR CRITIQUE : Tous les delta_mu sont à zéro.")
+    #         print(f"    Vérifiez si KineticEnergy*1000 ({e_max*1000:.1f} keV) tombe hors de [60, 140].")
+    # else:
+    #     print(">>> ERREUR CRITIQUE : Aucun point n'a été extrait (df_final vide).")
 
     return h_weight_sum, h_delta_mu_sum, total_photons
 
@@ -131,7 +131,7 @@ final_amu_kernels = np.zeros((KRNL_SIZE, NB_SLICES, KRNL_SIZE))
 # --- NORMALISATION DANS L'AIR ---
 print("\n>>> Phase de normalisation : Simulation dans l'AIR")
 nb_air_total = 0
-AIR_RUNS = 2   # Plusieurs runs pour réduire la variance statistique
+AIR_RUNS = 20   # Plusieurs runs pour réduire la variance statistique
 
 for a in range(AIR_RUNS):
     env = os.environ.copy()
@@ -143,7 +143,7 @@ for a in range(AIR_RUNS):
         directions_z = tree.arrays(["PostDirection_Z"], library="pd")
         count_filtered = (np.abs(directions_z['PostDirection_Z']) > 0.999).sum()
         nb_air_total += count_filtered
-        print(f"  Run AIR {a+1}: {count_filtered} photons perpendiculaires retenus.")
+        # print(f"  Run AIR {a+1}: {count_filtered} photons perpendiculaires retenus.")
 
     if os.path.exists(spect_air_path):
         os.remove(spect_air_path)
@@ -178,8 +178,20 @@ for s_idx, z_mm in enumerate(Z_POSITIONS):
                 if os.path.exists(p): os.remove(p)
 
             if total_run_idx % CHECKPOINT_INTERVAL == 0:
-                np.save(checkpoint_path, final_kernels)
-                print(f"[Checkpoint] Run {total_run_idx} sauvegardé.")
+                checkpoint_data = {
+                    'iteration': total_run_idx,
+                    'last_slice': s_idx,
+                    'last_run': r_idx,
+                    'kernels': final_kernels,
+                    'amu_accum': amu_kernels_accumulation,
+                    'norm_factor': norm_factor
+                }
+                
+                temp_path = checkpoint_path + ".tmp"
+                np.save(temp_path, checkpoint_data)
+                os.replace(temp_path, checkpoint_path)
+                
+                print(f"[Checkpoint] Run {total_run_idx} (Slice {s_idx+1}) sauvegardé.")
 
         except Exception as e:
             print(f"Erreur Slice {s_idx} Run {r_idx}: {e}")
