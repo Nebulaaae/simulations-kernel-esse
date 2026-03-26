@@ -5,3 +5,6 @@ __pycache__/
 .npy
 .venv/
 *.log
+validation_tests/nema_simulation_v1
+*.mhd
+*.raw
