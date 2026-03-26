@@ -26,6 +26,7 @@ sim.visu = False
 sim.number_of_threads = 1
 sim.output_dir = "./nema_simulation_v1"
 sim.check_volumes_overlap = False
+sim.progress_bar = True
 
 # Unités
 mm = gate.g4_units.mm
