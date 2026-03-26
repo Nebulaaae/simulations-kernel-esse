@@ -54,8 +54,7 @@ def filter_and_extract(depth):
     for chunk in uproot.iterate(waterbox_path, ["EventID", 'PostPosition_X', 'PostPosition_Y', 
                                                 'PostPosition_Z', "ProcessDefinedStep", "KineticEnergy", "PostDirection_Z"], library="pd"):
         chunk['ProcessDefinedStep'] = chunk['ProcessDefinedStep'].astype(str)
-        mask = (chunk['ProcessDefinedStep'].str.contains('compt')) & (chunk['EventID'].isin(detected_ids['EventID']))& \
-           (np.abs(chunk['PostDirection_Z']) > 0.999)
+        mask = (chunk['ProcessDefinedStep'].str.contains('compt')) & (chunk['EventID'].isin(detected_ids['EventID']))#& (np.abs(chunk['PostDirection_Z']) > 0.999)
         useful = chunk[mask]
         
         if not useful.empty:
@@ -140,9 +139,10 @@ for a in range(AIR_RUNS):
     spect_air_path = os.path.join(OUTPUT_FOLDER, "spect.root")
     with uproot.open(spect_air_path) as f:
         tree = f["peak208"]
-        directions_z = tree.arrays(["PostDirection_Z"], library="pd")
-        count_filtered = (np.abs(directions_z['PostDirection_Z']) > 0.999).sum()
-        nb_air_total += count_filtered
+        # directions_z = tree.arrays(["PostDirection_Z"], library="pd")
+        # count_filtered = (np.abs(directions_z['PostDirection_Z']) > 0.999).sum()
+        # nb_air_total += count_filtered
+        nb_air_total += tree.num_entries
         # print(f"  Run AIR {a+1}: {count_filtered} photons perpendiculaires retenus.")
 
     if os.path.exists(spect_air_path):
