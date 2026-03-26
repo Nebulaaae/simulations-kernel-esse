@@ -88,37 +88,6 @@ def filter_and_extract(depth):
         weights=df_final['delta_mu_weighted']
     )
 
-    # print("\n" + "="*30)
-    # print("RAPPORT DE DIAGNOSTIC ESSE")
-    # print("="*30)
-
-    # # 1. Vérification des volumes
-    # print(f"Somme totale final_kernels: {np.sum(final_kernels):.2e}")
-    # print(f"Somme totale amu_accumulation: {np.sum(amu_kernels_accumulation):.2e}")
-    # print(f"Valeur max final_amu_kernels: {np.max(final_amu_kernels):.6f}")
-
-    # # 2. Analyse des données brutes (si des points ont été extraits)
-    # if 'df_final' in locals() and not df_final.empty:
-    #     print(f"\nNombre de photons diffusés retenus: {len(df_final)}")
-        
-    #     # Vérification des énergies
-    #     e_min = df_final['KineticEnergy'].min()
-    #     e_max = df_final['KineticEnergy'].max()
-    #     print(f"Plage Energie détectée (MeV): {e_min:.4f} - {e_max:.4f}")
-        
-    #     # Vérification de l'interpolation mu
-    #     mu_vals = df_final['mu_i'].unique()
-    #     print(f"Valeurs de mu_i calculées: {mu_vals}")
-        
-    #     delta_mu = df_final['mu_i'] - MU_WATER
-    #     print(f"Delta_mu moyen: {delta_mu.mean():.6f}")
-        
-    #     if np.allclose(delta_mu, 0):
-    #         print(">>> ERREUR CRITIQUE : Tous les delta_mu sont à zéro.")
-    #         print(f"    Vérifiez si KineticEnergy*1000 ({e_max*1000:.1f} keV) tombe hors de [60, 140].")
-    # else:
-    #     print(">>> ERREUR CRITIQUE : Aucun point n'a été extrait (df_final vide).")
-
     return h_weight_sum, h_delta_mu_sum, total_photons
 
 # --- INITIALISATION ---
