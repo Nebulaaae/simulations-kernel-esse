@@ -8,12 +8,17 @@ import glob
 
 
 # Chemin vers le CT
-ct_dir = os.path.expanduser("~/SPECT/Lu177-NEMA-SymT2/CT")
+ct_dir = os.path.expanduser("C:/Users/chloe/Bureau/ICO/SPECT/Lu177-NEMA-SymT2/CT")
 
 reader = sitk.ImageSeriesReader()
 dicom_names = reader.GetGDCMSeriesFileNames(ct_dir)
 reader.SetFileNames(dicom_names)
 ct_image = reader.Execute()
+
+print(f"Dimensions CT : {ct_image.GetSize()}")
+print(f"Spacing CT : {ct_image.GetSpacing()}")
+if np.max(sitk.GetArrayFromImage(ct_image)) <= 0:
+    print("ATTENTION : L'image CT est vide ou ne contient que des valeurs <= 0")
 
 # Sauvegarde nouveau format
 sitk.WriteImage(ct_image, "nema_phantom_ct.mhd")
@@ -42,11 +47,40 @@ sim.world.size = [1 * gate.g4_units.m] * 3
 sim.world.material = "G4_AIR"
 
 # Fantôme à partir du CT
-phantom = sim.add_volume("Image", "nema_phantom")
+phantom = sim.add_volume("ImageVolume", "nema_phantom")
 phantom.image = "nema_phantom_ct.mhd"
-phantom.material = "G4_WATER"
-phantom.set_materials_from_voxelisation("/home/chloe/simulations-kernel-esse/validation_tests/HounsfieldUnit_to_Material.json")
+# phantom.material = "G4_WATER"
+# Configuration des matériaux avec attributs de couleur [R, G, B, Alpha]
+# Alpha = 0 (invisible), Alpha = 1 (opaque)
+# phantom.voxel_materials = [
+#     [-1025, -900, "G4_AIR", [0, 1, 0, 0]],       # Air : Totalement transparent
+#     [-900, 100, "G4_WATER", [1, 0, 0, 0.5]],    # Eau : Rouge semi-transparent
+#     [100, 3000, "G4_BONE_COMPACT_ICRU", [1, 1, 1, 1]] # Os : Blanc opaque
+# ]
+
+phantom.voxel_materials = [
+    [-1025, 90, "G4_AIR", [0, 1, 0, 0]],       # Air : Totalement transparent
+    [90, 100, "G4_AIR", [1, 0, 1, 0.5]],    # Eau : Rouge semi-transparent
+    [100, 3000, "G4_BONE_COMPACT_ICRU", [1, 1, 1, 1]] # Os : Blanc opaque
+]
+
+# Désactivez la couleur globale qui "écrase" les couleurs par voxel
+# phantom.user_info.color = [0.5, 0.5, 0.8, 0.3] # À SUPPRIMER
 phantom.user_info.translation = [[0, 0, 0]]
+phantom.user_info.origin = "center"
+
+ct_array = sitk.GetArrayFromImage(ct_image)
+print(f"\n[DIAGNOSTIC CT]")
+print(f"Dimensions : {ct_image.GetSize()}")
+print(f"Type de pixel : {ct_image.GetPixelIDTypeAsString()}")
+print(f"Valeur Min : {np.min(ct_array)}")
+print(f"Valeur Max : {np.max(ct_array)}")
+print(f"Valeur Moyenne : {np.mean(ct_array)}")
+
+
+if sim.visu:
+    phantom.user_info.vis_attribute = "Wireframe" 
+    phantom.user_info.color = [1, 0, 0, 1]
 
 # Génération map CT
 # ct_map = sim.add_actor("AttenuationImageActor", "ct_map")
@@ -105,8 +139,8 @@ source_sphere.energy.type = "spectrum_discrete"
 source_sphere.energy.spectrum_energies = [208.36 * keV] # Pic Lu177 principal
 source_sphere.energy.spectrum_weights = [1.0]
 
-source_sphere.attached_to = "world"
-source_sphere.position.translation = [0, -66, 0]
+source_sphere.attached_to = "nema_phantom"
+source_sphere.position.translation = [0, -66 * mm, 0]
 source_sphere.position.type = "sphere"
 source_sphere.position.radius = 18.5 * mm
 # source_sphere.direction.type = "momentum"
