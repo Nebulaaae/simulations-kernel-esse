@@ -22,7 +22,7 @@ sim = gate.Simulation()
 
 # Paramètres globaux
 sim.g4_verbose = False
-sim.visu = False
+sim.visu = True
 sim.number_of_threads = 8
 sim.output_dir = "./nema_simulation_v1"
 sim.check_volumes_overlap = False
@@ -117,7 +117,9 @@ source_sphere.direction.focus_dir = [0, 0, 1]
 source_sphere.direction.focus_theta = [0, 15 * gate.g4_units.deg]
 
 # Activité pour cette sphère
-source_sphere.activity = 10 * MBq / sim.number_of_threads
+# source_sphere.activity = 10 * MBq / sim.number_of_threads
+sim.number_of_threads = 1
+source_sphere.activity = 9 * gate.g4_units.Bq
 
 # Physique
 sim.physics_manager.physics_list_name = "G4EmStandardPhysics_option3"
