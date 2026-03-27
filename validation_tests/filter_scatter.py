@@ -4,59 +4,79 @@ import pandas as pd
 import os
 import SimpleITK as sitk
 
-OUTPUT_FOLDER = "./nema_simulation_v1"
-PIXEL_SIZE = 4.4  # mm (GE Discovery standard)
-IMG_SIZE = 128    # pixels
+OUTPUT_FOLDER = os.path.abspath("./nema_simulation_v1")
+PIXEL_SIZE = 4.4 
+IMG_SIZE = 128
 
 def extract_ground_truth_images():
     scatter_path = os.path.join(OUTPUT_FOLDER, "phantom_scatters_gt.root")
     spect_path = os.path.join(OUTPUT_FOLDER, "spect_hits.root")
     
     if not (os.path.exists(scatter_path) and os.path.exists(spect_path)):
-        print("Erreur : Fichiers ROOT introuvables.")
+        print(f"Erreur : Fichiers introuvables.")
         return
-
-    # Indentification des EventID associés aux scatters dans le fantôme
-    print("Identification des scatters dans le fantôme...")
-    with uproot.open(scatter_path) as f:
-        tree_name = [k for k in f.keys() if "Hits_Phantom" in k][0]
-        scatter_tree = f[tree_name]
-        processes = scatter_tree.arrays(["EventID", "ProcessDefinedStep"], library="pd")
-        processes['ProcessDefinedStep'] = processes['ProcessDefinedStep'].astype(str)
-        
-        scatter_event_ids = set(processes[processes['ProcessDefinedStep'].str.contains('compt')]['EventID'])
 
     print("Lecture des détections cristal...")
     with uproot.open(spect_path) as f:
-        tree_name = [k for k in f.keys() if "Hits" in k and "crystal" in k.lower()][0]
-        df_det = f[tree_name].arrays(["EventID", "PostPosition_X", "PostPosition_Y"], library="pd")
+        crystal_key = [k for k in f.keys() if "Hits" in k and "crystal" in k.lower()][0]
+        df_det = f[crystal_key].arrays(["EventID", "PostPosition_X", "PostPosition_Y"], library="pd")
+        detected_ids = df_det[['EventID']].drop_duplicates('EventID')
 
-    is_scatter = df_det['EventID'].isin(scatter_event_ids)
+    print(f"Photons détectés dans le cristal : {len(df_det)}")
+
+    print("Filtrage des scatters par itération...")
+    extracted_scatter_points = []
+    phantom_tree_path = f"{scatter_path}:Hits_Phantom"
     
-    df_scatter = df_det[is_scatter]
-    df_primary = df_det[~is_scatter]
+    for chunk in uproot.iterate(phantom_tree_path, 
+                                ["EventID", "PostPosition_X", "PostPosition_Y", "ProcessDefinedStep"], 
+                                step_size="100MB", library="pd"):
+        
+        chunk['ProcessDefinedStep'] = chunk['ProcessDefinedStep'].astype(str)
+        
+        mask = (chunk['ProcessDefinedStep'].str.contains('compt')) & \
+               (chunk['EventID'].isin(detected_ids['EventID']))
+        
+        useful = chunk[mask]
+        
+        if not useful.empty:
+            last_hits = useful.groupby('EventID').tail(1)
+            merged = last_hits.merge(df_det, on='EventID', how='inner', suffixes=('_phantom', '_crystal'))
+            if not merged.empty:
+                extracted_scatter_points.append(merged)
+
+    if not extracted_scatter_points:
+        print("Aucun scatter trouvé avec ces critères.")
+        return
+
+    df_scatter_final = pd.concat(extracted_scatter_points)
+    scatter_ids = set(df_scatter_final['EventID'])
+
+
+    df_primary_final = df_det[~df_det['EventID'].isin(scatter_ids)]
 
     limit = (IMG_SIZE * PIXEL_SIZE) / 2
-    bins = [IMG_SIZE, IMG_SIZE]
     range_img = [[-limit, limit], [-limit, limit]]
 
-    img_scatter, _, _ = np.histogram2d(
-        df_scatter['PostPosition_X'], df_scatter['PostPosition_Y'],
-        bins=bins, range=range_img
+    h_scatter, _, _ = np.histogram2d(
+        df_scatter_final['PostPosition_X_crystal'], df_scatter_final['PostPosition_Y_crystal'],
+        bins=IMG_SIZE, range=range_img
     )
 
-    img_primary, _, _ = np.histogram2d(
-        df_primary['PostPosition_X'], df_primary['PostPosition_Y'],
-        bins=bins, range=range_img
+    h_primary, _, _ = np.histogram2d(
+        df_primary_final['PostPosition_X'], df_primary_final['PostPosition_Y'],
+        bins=IMG_SIZE, range=range_img
     )
 
     # Sauvegarde
-    save_mhd(img_primary, "primary_reference.mhd")
-    save_mhd(img_scatter, "scatter_reference.mhd")
+    save_mhd(h_primary, "primary_reference.mhd")
+    save_mhd(h_scatter, "scatter_reference.mhd")
     
+    print("-" * 30)
     print(f"Extraction terminée.")
-    print(f"Photons primaires : {len(df_primary)}")
-    print(f"Photons diffusés : {len(df_scatter)}")
+    print(f"Primaires réels : {len(df_primary_final)}")
+    print(f"Scatters réels   : {len(df_scatter_final)}")
+    print("-" * 30)
 
 def save_mhd(data, filename):
     img = sitk.GetImageFromArray(data.T)
