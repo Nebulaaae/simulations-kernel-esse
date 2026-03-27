@@ -7,6 +7,7 @@ import opengate.contrib as contrib
 import SimpleITK as sitk
 import os
 import pkgutil
+import sys
 
 # # Liste les sous-packages de contrib
 # print("--- Sous-packages de contrib ---")
@@ -22,6 +23,8 @@ import pkgutil
 #     print(f"\nLe dossier {phantom_path} est introuvable.")
 
 # print([f for f in dir(nema_p) if 'add' in f or 'nema' in f.lower()])
+current_angle = float(sys.argv[1]) if len(sys.argv) > 1 else 0
+batch_id = int(sys.argv[2]) if len(sys.argv) > 2 else 0
 
 support_size = [128, 128, 128]
 support_spacing = [3.0, 3.0, 3.0] # mm
@@ -35,11 +38,13 @@ sim = gate.Simulation()
 
 ## Paramètres globaux
 sim.g4_verbose = False
-sim.visu = True
+sim.visu = False
 sim.number_of_threads = 1
 sim.output_dir = "./nema_final_sim"
 sim.progress_bar = True
 sim.check_volumes_overlap = False 
+
+sim.random_seed = 12345 + batch_id #todo : à valider ? 
 
 mm = gate.g4_units.mm
 cm = gate.g4_units.cm
@@ -51,6 +56,7 @@ MBq = 1e6 * gate.g4_units.Bq
 sim.world.size = [1 * gate.g4_units.m] * 3
 sim.world.material = "G4_AIR"
 
+
 ## Fantôme NEMA IEC natif
 phantom = nema_p.add_iec_phantom(sim, "nema")
 phantom.user_info.translation = [[0, 0, 0]]
@@ -59,10 +65,15 @@ phantom.user_info.rotation = [rot_flip]
 
 ## Configuration SPECT
 collimator_type = "megp"
-spect, colli, crystal = spect_ge_nm670.add_spect_head(sim, "spect", collimator_type)
-spect.user_info.translation = [[0, 0, 25 * cm]]
-rot = R.from_euler('y', 180, degrees=True).as_matrix()
-spect.user_info.rotation = [rot]
+spect, colli, crystal = spect_ge_nm670.add_spect_head(sim, "spect", "megp")
+# Rayon de rotation (ROR) de 25cm + rotation circulaire
+rad = 25 * cm
+pos_x = rad * np.sin(np.radians(current_angle))
+pos_z = rad * np.cos(np.radians(current_angle))
+
+spect.user_info.translation = [[pos_x, 0, pos_z]]
+rot_matrix = R.from_euler('y', 180 + current_angle, degrees=True).as_matrix()
+spect.user_info.rotation = [rot_matrix]
 
 ## Digitizer
 channels = [{"name": "peak208", "min": 192.4 * keV, "max": 223.6 * keV}]
