@@ -39,10 +39,10 @@ sim = gate.Simulation()
 ## Paramètres globaux
 sim.g4_verbose = False
 sim.visu = False
-sim.number_of_threads = 1
+sim.number_of_threads = 8
 sim.output_dir = "./nema_final_sim"
-sim.progress_bar = True
-sim.check_volumes_overlap = False 
+sim.progress_bar = False
+sim.check_volumes_overlap = True
 
 sim.random_seed = 12345 + batch_id #todo : à valider ? 
 
@@ -108,7 +108,7 @@ proj.output_filename = "projections_nema.mhd"
 
 ## Paramètres de l'activité (Concentration constante)
 # On définit une activité de référence pour la plus grosse sphère (37mm)
-activity_37mm = 1 * MBq / 100000
+activity_37mm = 1 * MBq / sim.number_of_threads
 radius_ref = 18.5 * mm
 vol_ref = (4/3) * np.pi * (radius_ref**3)
 concentration = activity_37mm / vol_ref
@@ -141,5 +141,5 @@ for d in diameters:
 sim.physics_manager.physics_list_name = "G4EmStandardPhysics_option3"
 
 ## Run
-sim.run_timing_intervals = [[0, 1 * sec]]
+sim.run_timing_intervals = [[0, 100 * sec]]
 sim.run()

@@ -10,8 +10,8 @@ import json
 # --- CONFIGURATION ---
 IMG_SIZE = 128
 PIXEL_SIZE = 0.44 
-NB_ANGLES = 2
-RUNS_PER_ANGLE = 5 
+NB_ANGLES = 20
+RUNS_PER_ANGLE = 15
 ROR = 25.0             # Rayon de rotation en cm
 ANGLES = np.linspace(0, 360, NB_ANGLES, endpoint=False)
 
