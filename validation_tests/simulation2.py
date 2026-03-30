@@ -41,7 +41,7 @@ sim.g4_verbose = False
 sim.visu = False
 sim.number_of_threads = 8
 sim.output_dir = "./nema_final_sim"
-sim.progress_bar = False
+sim.progress_bar = True
 sim.check_volumes_overlap = True
 
 sim.random_seed = 12345 + batch_id #todo : à valider ? 
@@ -127,9 +127,12 @@ for d in diameters:
     
     src = sim.add_source("GenericSource", name)
     src.particle = "gamma"
-    src.energy.type = "spectrum_discrete"
-    src.energy.spectrum_energies = [208.36 * keV]
-    src.energy.spectrum_weights = [1.0]
+    # src.energy.type = "spectrum_discrete"
+    # src.energy.spectrum_energies = [208.36 * keV]
+    # src.energy.spectrum_weights = [1.0]
+    src.energy.type = "mono"
+    src.energy.mono = 208 * keV
+
     
     src.attached_to = vol_target
     src.position.type = "sphere"
