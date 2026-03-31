@@ -5,6 +5,11 @@ import subprocess
 import sys
 import SimpleITK as sitk
 import json
+import argparse
+
+parser = argparse.ArgumentParser(description="Lancement du batch SPECT avec option de restauration.")
+parser.add_argument("--restore", action="store_true", help="Reprendre à partir du dernier checkpoint s'il existe.")
+args_cmd = parser.parse_args()
 
 # --- CONFIGURATION ---
 IMG_SIZE = 128
@@ -48,6 +53,8 @@ def extract_and_separate():
     df_scatter = df_det[mask_scatter]
     df_primary = df_det[~mask_scatter]
 
+    df_det['PostPosition_X'].max()
+
     limit = (IMG_SIZE * PIXEL_SIZE) / 2
     range_img = [[-limit, limit], [-limit, limit]]
     
@@ -61,7 +68,7 @@ volume_primary = np.zeros((NB_ANGLES, IMG_SIZE, IMG_SIZE))
 volume_scatter = np.zeros((NB_ANGLES, IMG_SIZE, IMG_SIZE))
 start_angle_idx = 0
 
-if os.path.exists(CHECKPOINT_PATH):
+if os.path.exists(CHECKPOINT_PATH) and args_cmd.restore:
     cp = np.load(CHECKPOINT_PATH, allow_pickle=True).item()
     start_angle_idx = cp['next_idx']
     volume_primary = cp['vol_p']
@@ -69,16 +76,18 @@ if os.path.exists(CHECKPOINT_PATH):
 
 # --- BOUCLE PRINCIPALE ---
 for i in range(start_angle_idx, NB_ANGLES):
+    print(f"Traitement de l'angle {ANGLES[i]:.1f}° (index {i})")
     angle = ANGLES[i]
     h_prim_angle = np.zeros((IMG_SIZE, IMG_SIZE))
     h_scat_angle = np.zeros((IMG_SIZE, IMG_SIZE))
     
     for r in range(RUNS_PER_ANGLE):
+        print(f"  Run {r + 1}/{RUNS_PER_ANGLE} pour l'angle {angle:.1f}°")
         env = os.environ.copy()
         env["SPECT_ANGLE"] = str(angle)
         env["BATCH_ID"] = str(i * RUNS_PER_ANGLE + r) 
 
-        subprocess.run([sys.executable, SIM_SCRIPT], env=env, check=True)
+        subprocess.run([sys.executable, SIM_SCRIPT, str(angle), str(i * RUNS_PER_ANGLE + r)], env=env, check=True)
         
         hp, hs = extract_and_separate()
         if hp is not None:

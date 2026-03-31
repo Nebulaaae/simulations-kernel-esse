@@ -23,8 +23,13 @@ import sys
 #     print(f"\nLe dossier {phantom_path} est introuvable.")
 
 # print([f for f in dir(nema_p) if 'add' in f or 'nema' in f.lower()])
-current_angle = float(sys.argv[1]) if len(sys.argv) > 1 else 0
-batch_id = int(sys.argv[2]) if len(sys.argv) > 2 else 0
+try:
+    current_angle = float(sys.argv[1])
+    batch_id = int(sys.argv[2])
+except (IndexError, ValueError):
+    # Valeurs par défaut si lancé manuellement sans arguments
+    current_angle = 0.0
+    batch_id = 0
 
 support_size = [128, 128, 128]
 support_spacing = [3.0, 3.0, 3.0] # mm
@@ -53,7 +58,7 @@ sec = gate.g4_units.second
 MBq = 1e6 * gate.g4_units.Bq
 
 ## Monde
-sim.world.size = [1 * gate.g4_units.m] * 3
+sim.world.size = [2 * gate.g4_units.m] * 3
 sim.world.material = "G4_AIR"
 
 
@@ -67,7 +72,7 @@ phantom.user_info.rotation = [rot_flip]
 collimator_type = "megp"
 spect, colli, crystal = spect_ge_nm670.add_spect_head(sim, "spect", "megp")
 # Rayon de rotation (ROR) de 25cm + rotation circulaire
-rad = 25 * cm
+rad = 40 * cm
 pos_x = rad * np.sin(np.radians(current_angle))
 pos_z = rad * np.cos(np.radians(current_angle))
 
