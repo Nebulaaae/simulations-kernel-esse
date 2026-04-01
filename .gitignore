@@ -8,3 +8,4 @@ __pycache__/
 validation_tests/nema_simulation_v1
 *.mhd
 *.raw
+validation_tests/output_*
