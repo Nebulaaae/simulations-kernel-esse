@@ -14,7 +14,7 @@ args_cmd = parser.parse_args()
 # --- CONFIGURATION ---
 IMG_SIZE = 128
 PIXEL_SIZE = 0.44 
-NB_ANGLES = 5
+NB_ANGLES = 1
 RUNS_PER_ANGLE = 4
 ROR = 25.0             
 ANGLES = np.linspace(0, 360, NB_ANGLES, endpoint=False)
@@ -96,7 +96,7 @@ for i in range(start_angle_idx, NB_ANGLES):
         env["SPECT_ANGLE"] = str(angle)
         env["BATCH_ID"] = str(i * RUNS_PER_ANGLE + r) 
 
-        subprocess.run([sys.executable, SIM_SCRIPT, str(angle), str(i * RUNS_PER_ANGLE + r)], env=env, check=True)
+        subprocess.run([sys.executable, SIM_SCRIPT, str(angle), str(i * RUNS_PER_ANGLE + r), "0"], env=env, check=True)
         
         hp, hs = extract_and_separate()
         if hp is not None:
@@ -113,6 +113,8 @@ for i in range(start_angle_idx, NB_ANGLES):
     volume_primary[i, :, :] = h_prim_angle
     volume_scatter[i, :, :] = h_scat_angle
     np.save(CHECKPOINT_PATH, {'next_idx': i + 1, 'vol_p': volume_primary, 'vol_s': volume_scatter})
+
+subprocess.run([sys.executable, SIM_SCRIPT, "0.0", "0", "1", "1"], env=env, check=True)
 
 # --- SAUVEGARDE FINALE ---
 def save_mhd(data, name):
