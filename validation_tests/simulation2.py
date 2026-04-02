@@ -46,7 +46,8 @@ sim.g4_verbose = False
 sim.visu = False
 sim.number_of_threads = 8
 sim.output_dir = "./nema_final_sim"
-sim.progress_bar = True
+sim.progress_bar = False
+sim.random_seed = 12345 + batch_id
 sim.check_volumes_overlap = True
 
 sim.random_seed = 12345 + batch_id #todo : à valider ? 
@@ -81,11 +82,20 @@ rot_matrix = R.from_euler('y', 180 + current_angle, degrees=True).as_matrix()
 spect.user_info.rotation = [rot_matrix]
 
 ## Digitizer
-channels = [{"name": "peak208", "min": 192.4 * keV, "max": 223.6 * keV}]
+channels = [
+    {"name": f"spectrum", "min": 3 * keV, "max": 515 * keV},
+    {"name": f"scatter1", "min": 96 * keV, "max": 104 * keV},
+    {"name": f"peak113", "min": 104.52 * keV, "max": 121.48 * keV},
+    {"name": f"scatter2", "min": 122.48 * keV, "max": 133.12 * keV},
+    {"name": f"scatter3", "min": 176.46 * keV, "max": 191.36 * keV},
+    {"name": f"peak208", "min": 192.4 * keV, "max": 223.6 * keV},
+    {"name": f"scatter4", "min": 224.64 * keV, "max": 243.3 * keV},
+]
 
 hc = sim.add_actor("DigitizerHitsCollectionActor", f"Hits_{crystal.name}")
 hc.attached_to = crystal.name
 hc.attributes = ["EventID", "PostPosition", "TotalEnergyDeposit"]
+hc.output_filename = "spect_hits.root"
 
 cc = sim.add_actor("DigitizerEnergyWindowsActor", f"EnergyWindows_{crystal.name}")
 cc.attached_to = crystal.name
@@ -94,10 +104,28 @@ cc.channels = channels
 
 proj = sim.add_actor("DigitizerProjectionActor", f"Projection_{crystal.name}")
 proj.attached_to = crystal.name
-proj.input_digi_collections = ["peak208"]
+# proj.input_digi_collections = ["scatter1", "peak113", "scatter2", "scatter3", "peak208", "scatter4"]
+proj.input_digi_collections = ["scatter3", "peak208", "scatter4"]
 proj.spacing = [4.4 * mm, 4.4 * mm]
 proj.size = [128, 128]
 proj.output_filename = "projections_nema.mhd"
+
+phantom_hits = sim.add_actor("DigitizerHitsCollectionActor", "Hits_phantom")
+phantom_hits.attached_to = "nema"
+phantom_hits.output_filename = "phantom_scatters.root"
+
+f = sim.add_filter("ParticleFilter", "gamma_filter")
+f.particle = "gamma"
+phantom_hits.filters.append(f)
+
+phantom_hits.attributes = [
+        "EventID",
+        "PostPosition",
+        "TrackID",
+        "ProcessDefinedStep",
+        "KineticEnergy",
+        "PostDirection"
+    ]
 
 ## Source Lu177 dans la sphère 6
 # source = sim.add_source("GenericSource", "lu177_sphere")

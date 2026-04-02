@@ -15,10 +15,11 @@ args_cmd = parser.parse_args()
 IMG_SIZE = 128
 PIXEL_SIZE = 0.44 
 NB_ANGLES = 5
-RUNS_PER_ANGLE = 2
+RUNS_PER_ANGLE = 4
 ROR = 25.0             
 ANGLES = np.linspace(0, 360, NB_ANGLES, endpoint=False)
 
+INPUT_FOLDER = os.path.abspath("./nema_final_sim")
 OUTPUT_FOLDER = os.path.abspath("./output_spect")
 SIM_SCRIPT = os.path.abspath("./simulation2.py")
 CHECKPOINT_PATH = os.path.join(OUTPUT_FOLDER, "spect_checkpoint.npy")
@@ -27,27 +28,35 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
 def extract_and_separate():
     """Lit les fichiers ROOT et sépare Primaire/Scatter."""
-    scatter_path = os.path.join(OUTPUT_FOLDER, "phantom_scatters_gt.root")
-    spect_path = os.path.join(OUTPUT_FOLDER, "spect_hits.root")
+    # print("script d'extraction")
+    scatter_path = os.path.join(INPUT_FOLDER, "phantom_scatters.root")
+    spect_path = os.path.join(INPUT_FOLDER, "spect_hits.root")
     
     if not (os.path.exists(scatter_path) and os.path.exists(spect_path)):
+        print(f"Fichiers ROOT manquants : {scatter_path} ou {spect_path}")
         return None, None
 
     with uproot.open(spect_path) as f:
-        tree = f["peak208"]
+        # print("on ouvre le fichier spect_hits.root")
+        # tree = f["peak208"]
+        tree = f["Hits_spect_crystal"]
         df_det = tree.arrays(["EventID", "PostPosition_X", "PostPosition_Y"], library="pd")
 
     if df_det.empty: return np.zeros((IMG_SIZE, IMG_SIZE)), np.zeros((IMG_SIZE, IMG_SIZE))
 
     scatter_ids = set()
     with uproot.open(scatter_path) as f:
-        tree_scat = f["phantom_scatters_gt"]
+        # print("on ouvre le fichier phantom_scatters.root")
+        tree_scat = f["Hits_phantom"]
         # On itère par blocs
         for chunk in tree_scat.iterate(["EventID", "ProcessDefinedStep"], step_size="50MB", library="pd"):
             # Filtrage : l'événement est détecté ET a subi un 'compt' (Compton)
             mask = (chunk['ProcessDefinedStep'].astype(str).str.contains('compt'))
             relevant_ids = chunk.loc[mask, 'EventID']
             scatter_ids.update(relevant_ids)
+            # print(relevant_ids)
+        
+        # print(f"Total d'EventID avec scatter de type 'compt': {len(scatter_ids)}")
 
     mask_scatter = df_det['EventID'].isin(scatter_ids)
     df_scatter = df_det[mask_scatter]
@@ -93,10 +102,12 @@ for i in range(start_angle_idx, NB_ANGLES):
         if hp is not None:
             h_prim_angle += hp
             h_scat_angle += hs
+        
+        # print(f"  Run {r + 1} terminé pour l'angle {angle:.1f}°")
             
         # NETTOYAGE IMMEDIAT
-        for f in ["spect_hits.root", "phantom_scatters_gt.root"]:
-            p = os.path.join(OUTPUT_FOLDER, f)
+        for f in ["spect_hits.root", "phantom_scatters.root"]:
+            p = os.path.join(INPUT_FOLDER, f)
             if os.path.exists(p): os.remove(p)
 
     volume_primary[i, :, :] = h_prim_angle
@@ -113,7 +124,28 @@ save_mhd(volume_primary, "projections_primary.mhd")
 save_mhd(volume_scatter, "projections_scatter.mhd")
 save_mhd(volume_primary + volume_scatter, "projections_total.mhd")
 
+# --- Dans la section SAUVEGARDE FINALE ---
+
+metadata = {
+    "simulation_params": {
+        "num_projections": int(NB_ANGLES),
+        "pixel_size_cm": float(PIXEL_SIZE),
+        "matrix_size": int(IMG_SIZE),
+        "runs_per_angle": int(RUNS_PER_ANGLE)
+    },
+    "geometry": {
+        "angles": ANGLES.tolist(),
+        "radii_cm": [float(ROR)] * int(NB_ANGLES),
+        "direction": "CCW" 
+    },
+    "reconstruction_info": {
+        "collimator": "MEGP",
+        "energy_kev": 208.0,
+        "intrinsic_resolution_cm": 0.38
+    }
+}
+
 with open(os.path.join(OUTPUT_FOLDER, "metadata_pytomography.json"), "w") as f:
-    json.dump({"num_projections": NB_ANGLES, "pixel_size_cm": PIXEL_SIZE}, f)
+    json.dump(metadata, f, indent=4)
 
 print("Terminé.")
