@@ -149,8 +149,7 @@ phantom_hits.attributes = [
 # source.activity = 1 * MBq / 100000
 
 ## Paramètres de l'activité (Concentration constante)
-# On définit une activité de référence pour la plus grosse sphère (37mm)
-activity_37mm = 0.01 * MBq / sim.number_of_threads
+activity_37mm = 1 * MBq / sim.number_of_threads
 radius_ref = 18.5 * mm
 vol_ref = (4/3) * np.pi * (radius_ref**3)
 concentration = activity_37mm / vol_ref
