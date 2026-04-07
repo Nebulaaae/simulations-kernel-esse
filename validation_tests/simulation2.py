@@ -33,13 +33,11 @@ import sys
 try:
     current_angle = float(sys.argv[1])
     batch_id = int(sys.argv[2])
-    generate_CT = bool(int(sys.argv[3]))
     threads = int(sys.argv[4]) if len(sys.argv) > 4 else 8
 except (IndexError, ValueError):
     # Valeurs par défaut si lancé manuellement sans arguments
     current_angle = 0.0
     batch_id = 0
-    generate_CT = True
     threads = 8
 
 support_size = [128, 128, 128]
@@ -152,7 +150,7 @@ phantom_hits.attributes = [
 
 ## Paramètres de l'activité (Concentration constante)
 # On définit une activité de référence pour la plus grosse sphère (37mm)
-activity_37mm = 0.1 * MBq / sim.number_of_threads
+activity_37mm = 0.01 * MBq / sim.number_of_threads
 radius_ref = 18.5 * mm
 vol_ref = (4/3) * np.pi * (radius_ref**3)
 concentration = activity_37mm / vol_ref
@@ -183,41 +181,6 @@ for d in diameters:
     src.position.radius = r
     src.direction.type = "iso"
     src.activity = sphere_activity
-
-# if generate_CT:
-#     res_actor = sim.add_actor("DoseActor", "attenuation_map")
-#     res_actor.attached_to = "world" 
-#     res_actor.spacing = [3.0 * mm, 3.0 * mm, 3.0 * mm]
-#     res_actor.size = [128, 128, 128]
-    
-#     # Activation de la sortie densité via sa propriété dédiée
-#     res_actor.density.active = True
-    
-#     # Désactivation des autres sorties si nécessaire (edep, etc.)
-#     res_actor.edep.active = False
-    
-#     # Nom de base pour les fichiers de sortie
-#     res_actor.output_filename = os.path.join(sim.output_dir, "nema_density_map.mhd")
-
-if generate_CT:
-    # 1. Voxelisation de la géométrie du fantôme
-    # 'phantom' est l'objet retourné par nema_p.add_iec_phantom
-    volume_labels, image = voxelize_geometry(
-        sim, 
-        extent=phantom, 
-        spacing=(3*mm, 3*mm, 3*mm), 
-        margin=0
-    )
-
-    # 2. Écriture des fichiers de sortie
-    # Cela va générer 'nema_voxelized.mhd' et les fichiers de labels associés
-    write_voxelized_geometry(
-        sim, 
-        volume_labels, 
-        image, 
-        os.path.join(sim.output_dir, "nema_voxelized.mhd")
-    )
-    
 
 ## Physique
 sim.physics_manager.physics_list_name = "G4EmStandardPhysics_option3"

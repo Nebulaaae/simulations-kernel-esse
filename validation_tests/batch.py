@@ -14,8 +14,8 @@ args_cmd = parser.parse_args()
 # --- CONFIGURATION ---
 IMG_SIZE = 128
 PIXEL_SIZE = 0.44 
-NB_ANGLES = 1
-RUNS_PER_ANGLE = 4
+NB_ANGLES = 5
+RUNS_PER_ANGLE = 5
 ROR = 25.0             
 ANGLES = np.linspace(0, 360, NB_ANGLES, endpoint=False)
 
@@ -114,7 +114,7 @@ for i in range(start_angle_idx, NB_ANGLES):
     volume_scatter[i, :, :] = h_scat_angle
     np.save(CHECKPOINT_PATH, {'next_idx': i + 1, 'vol_p': volume_primary, 'vol_s': volume_scatter})
 
-subprocess.run([sys.executable, SIM_SCRIPT, "0.0", "0", "1", "1"], env=env, check=True)
+subprocess.run([sys.executable, "simulation_attenuation_map.py"], env=env, check=True)
 
 # --- SAUVEGARDE FINALE ---
 def save_mhd(data, name):
