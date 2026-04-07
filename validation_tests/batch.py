@@ -127,24 +127,33 @@ save_mhd(volume_primary, "projections_primary.mhd")
 save_mhd(volume_scatter, "projections_scatter.mhd")
 save_mhd(volume_primary + volume_scatter, "projections_total.mhd")
 
-# --- Dans la section SAUVEGARDE FINALE ---
+path_mu = os.path.join(OUTPUT_FOLDER, "../nema_maps/nema_mu_map_208keV.mhd")
+img_mu = sitk.ReadImage(path_mu)
+
+vox_size_x, vox_size_y, vox_size_z = img_mu.GetSpacing()
+num_x, num_y, num_z = img_mu.GetSize()
 
 metadata = {
     "simulation_params": {
         "num_projections": int(NB_ANGLES),
         "pixel_size_cm": float(PIXEL_SIZE),
-        "matrix_size": int(IMG_SIZE),
+        "matrix_size": int(IMG_SIZE), 
+        "num_slices_z": int(num_z), 
+        "voxel_size_cm": float(vox_size_x / 10.0),
         "runs_per_angle": int(RUNS_PER_ANGLE)
     },
     "geometry": {
         "angles": ANGLES.tolist(),
         "radii_cm": [float(ROR)] * int(NB_ANGLES),
-        "direction": "CCW" 
+        "direction": "CCW",
+        "orbit_type": "circular"
     },
     "reconstruction_info": {
-        "collimator": "MEGP",
+        "collimator": "Medium Energy", 
         "energy_kev": 208.0,
-        "intrinsic_resolution_cm": 0.38
+        "intrinsic_resolution_cm": 0.38,
+        "collimator_slope": 0.054,
+        "collimator_intercept": 0.13
     }
 }
 
