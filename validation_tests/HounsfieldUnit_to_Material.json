@@ -1,5 +1,0 @@
-{
-  "0": { "label": -5000, "material": "G4_AIR" },
-  "1": { "label": -900,  "material": "G4_WATER" },
-  "2": { "label": 500,   "material": "G4_BONE_COMPACT_ICRU" }
-}
