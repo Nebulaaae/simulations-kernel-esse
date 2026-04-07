@@ -114,6 +114,7 @@ for i in range(start_angle_idx, NB_ANGLES):
     volume_scatter[i, :, :] = h_scat_angle
     np.save(CHECKPOINT_PATH, {'next_idx': i + 1, 'vol_p': volume_primary, 'vol_s': volume_scatter})
 
+print("Lancement de la simulation de génération de la carte d'atténuation.")
 subprocess.run([sys.executable, "simulation_attenuation_map.py"], env=env, check=True)
 
 # --- SAUVEGARDE FINALE ---
