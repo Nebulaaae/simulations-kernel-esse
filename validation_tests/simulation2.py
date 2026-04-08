@@ -55,7 +55,7 @@ sim.g4_verbose = False
 sim.visu = False
 sim.number_of_threads = threads
 sim.output_dir = "./nema_final_sim"
-sim.progress_bar = True
+sim.progress_bar = False
 # sim.random_seed = 12345 + batch_id
 sim.check_volumes_overlap = True
 
@@ -149,7 +149,7 @@ phantom_hits.attributes = [
 # source.activity = 1 * MBq / 100000
 
 ## Paramètres de l'activité (Concentration constante)
-activity_37mm = 1 * MBq / sim.number_of_threads
+activity_37mm = 0.01 * MBq / sim.number_of_threads
 radius_ref = 18.5 * mm
 vol_ref = (4/3) * np.pi * (radius_ref**3)
 concentration = activity_37mm / vol_ref
@@ -177,6 +177,7 @@ for d in diameters:
     
     src.attached_to = vol_target
     src.position.type = "sphere"
+    src.position.fill = True
     src.position.radius = r
     src.direction.type = "iso"
     src.activity = sphere_activity
