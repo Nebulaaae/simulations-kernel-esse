@@ -23,7 +23,7 @@ sim = gate.Simulation()
 # --- Paramètres globaux ---
 sim.g4_verbose = False
 sim.visu = False
-sim.progress_bar = False
+sim.progress_bar = True
 sim.number_of_threads = threads
 sim.output_dir = "./nema_final_sim"
 sim.random_seed = 12345 + batch_id
@@ -77,27 +77,12 @@ cc.attributes = ["UnscatteredPrimaryFlag"]
 F = GateFilterBuilder()
 
 # 1. Filtre pour les photons primaires
-filter_primary = (F.UnscatteredPrimaryFlag)
+filter_primary = (F.UnscatteredPrimaryFlag == True)
 
 
 # 2. Filtre pour les photons diffusés
-filter_scatter = ~(F.UnscatteredPrimaryFlag)
+filter_scatter = ~F.UnscatteredPrimaryFlag
 
-print(filter_primary)
-print(filter_scatter)
-
-# --- Diagnostic PhaseSpace ---
-ps = sim.add_actor("PhaseSpaceActor", "ps_diagnostic")
-ps.attached_to = crystal.name
-# Correction de l'attribut : output -> output_filename
-ps.output_filename = f"debug_ps_{int(current_angle)}.root"
-# On ajoute TrackID pour avoir un second critère de tri si le flag échoue
-ps.attributes = ["KineticEnergy", "UnscatteredPrimaryFlag", "EventID", "TrackID"]
-
-# --- RAPPEL : PROPAGATION OBLIGATOIRE ---
-# Sans ces deux lignes, les filtres des Projections recevront des données vides
-hc.attributes = ["EventID", "PostPosition", "TotalEnergyDeposit", "UnscatteredPrimaryFlag", "TrackID"]
-cc.attributes = ["UnscatteredPrimaryFlag", "TrackID"]
 
 # --- Projections séparées ---
 
@@ -116,6 +101,7 @@ proj_prim.attached_to = crystal.name
 proj_prim.input_digi_collections = ["peak208"]
 proj_prim.spacing = [4.4 * mm, 4.4 * mm]
 proj_prim.size = [128, 128]
+# proj_prim.attributes = ["UnscatteredPrimaryFlag"]
 proj_prim.filter = filter_primary
 proj_prim.output_filename = f"proj_primary_angle_{int(current_angle)}.mhd"
 
@@ -125,11 +111,12 @@ proj_scat.attached_to = crystal.name
 proj_scat.input_digi_collections = ["peak208"] 
 proj_scat.spacing = [4.4 * mm, 4.4 * mm]
 proj_scat.size = [128, 128]
+# proj_scat.attributes = ["UnscatteredPrimaryFlag"]
 proj_scat.filter = ~filter_primary
 proj_scat.output_filename = f"proj_scatter_angle_{int(current_angle)}.mhd"
 
 # --- Sources ---
-total_activity_37mm = 0.01 * MBq / sim.number_of_threads
+total_activity_37mm = 4 * MBq / sim.number_of_threads
 radius_ref = 18.5 * mm
 vol_ref = (4/3) * np.pi * (radius_ref**3)
 concentration = total_activity_37mm / vol_ref

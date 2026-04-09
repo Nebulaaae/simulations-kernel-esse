@@ -13,7 +13,7 @@ args_cmd = parser.parse_args()
 # --- CONFIGURATION ---
 IMG_SIZE = 128
 PIXEL_SIZE = 0.44 
-NB_ANGLES = 1
+NB_ANGLES = 25
 ROR = 25.0              
 ANGLES = np.linspace(0, 360, NB_ANGLES, endpoint=False)
 
@@ -39,6 +39,12 @@ if args_cmd.restore and os.path.exists(CHECKPOINT_PATH):
 # --- BOUCLE PRINCIPALE ---
 for i in range(start_idx, NB_ANGLES):
     angle = ANGLES[i]
+
+    if os.path.exists(INPUT_FOLDER):
+        for f in os.listdir(INPUT_FOLDER):
+            if f.endswith(".mhd") or f.endswith(".raw") or f.endswith(".root"):
+                os.remove(os.path.join(INPUT_FOLDER, f))
+
     print(f">>> Simulation Angle {angle:.1f}° ({i+1}/{NB_ANGLES})")
     
     # Exécution de la simulation OpenGate pour cet angle
