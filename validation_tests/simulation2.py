@@ -2,6 +2,7 @@ import opengate as gate
 import opengate.contrib.spect.ge_discovery_nm670 as spect_ge_nm670
 import opengate.contrib.phantoms.nemaiec as nema_p
 from opengate.voxelize import voxelize_geometry, write_voxelized_geometry
+from opengate.actors.filters import GateFilterBuilder 
 from scipy.spatial.transform import Rotation as R
 import numpy as np
 import opengate.contrib as contrib
@@ -123,9 +124,9 @@ phantom_hits = sim.add_actor("DigitizerHitsCollectionActor", "Hits_phantom")
 phantom_hits.attached_to = "nema"
 phantom_hits.output_filename = "phantom_scatters.root"
 
-f = sim.add_filter("ParticleFilter", "gamma_filter")
-f.particle = "gamma"
-phantom_hits.filters.append(f)
+F = GateFilterBuilder()
+gamma_filter = (F.ParticleName == "gamma")
+phantom_hits.filter = gamma_filter
 
 phantom_hits.attributes = [
         "EventID",
@@ -177,7 +178,7 @@ for d in diameters:
     
     src.attached_to = vol_target
     src.position.type = "sphere"
-    src.position.fill = True
+    # src.position.fill = True
     src.position.radius = r
     src.direction.type = "iso"
     src.activity = sphere_activity
