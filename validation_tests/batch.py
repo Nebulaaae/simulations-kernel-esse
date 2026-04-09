@@ -118,9 +118,14 @@ print("Lancement de la simulation de génération de la carte d'atténuation.")
 subprocess.run([sys.executable, "simulation_attenuation_map.py"], env=env, check=True)
 
 # --- SAUVEGARDE FINALE ---
+# def save_mhd(data, name):
+#     img = sitk.GetImageFromArray(data.astype(np.float32))
+#     img.SetSpacing([PIXEL_SIZE, PIXEL_SIZE, 1.0])
+#     sitk.WriteImage(img, os.path.join(OUTPUT_FOLDER, name))
+
 def save_mhd(data, name):
     img = sitk.GetImageFromArray(data.astype(np.float32))
-    img.SetSpacing([PIXEL_SIZE, PIXEL_SIZE, 1.0])
+    img.SetSpacing([PIXEL_SIZE, PIXEL_SIZE, 1.0]) 
     sitk.WriteImage(img, os.path.join(OUTPUT_FOLDER, name))
 
 save_mhd(volume_primary, "projections_primary.mhd")
