@@ -13,7 +13,7 @@ args_cmd = parser.parse_args()
 # --- CONFIGURATION ---
 IMG_SIZE = 128
 PIXEL_SIZE = 0.44 
-NB_ANGLES = 25
+NB_ANGLES = 1
 ROR = 25.0              
 ANGLES = np.linspace(0, 360, NB_ANGLES, endpoint=False)
 
@@ -53,12 +53,40 @@ for i in range(start_idx, NB_ANGLES):
     }
 
     try:
-        vol_p[i] = sitk.GetArrayFromImage(sitk.ReadImage(os.path.join(INPUT_FOLDER, base_names['p'])))
-        vol_s[i] = sitk.GetArrayFromImage(sitk.ReadImage(os.path.join(INPUT_FOLDER, base_names['s'])))
-        vol_t[i] = sitk.GetArrayFromImage(sitk.ReadImage(os.path.join(INPUT_FOLDER, base_names['t'])))
+        # Lecture des images
+        img_p_raw = sitk.GetArrayFromImage(sitk.ReadImage(os.path.join(INPUT_FOLDER, base_names['p'])))
+        img_s_raw = sitk.GetArrayFromImage(sitk.ReadImage(os.path.join(INPUT_FOLDER, base_names['s'])))
+        
+        # Squeeze pour s'assurer d'être en 2D (128, 128)
+        p_2d = np.squeeze(img_p_raw)
+        s_2d = np.squeeze(img_s_raw)
+
+        # --- CALCULS DE DIAGNOSTIC ---
+        sum_p = np.sum(p_2d)
+        sum_s = np.sum(s_2d)
+        
+        print(f"\n[DIAGNOSTIC ANGLE {angle:.1f}°]")
+        print(f"  -> Total Primary Comptes : {sum_p:.0f}")
+        print(f"  -> Total Scatter Comptes : {sum_s:.0f}")
+
+        if sum_p == sum_s and sum_p > 0:
+            print("  ⚠️ ALERT: Primary et Scatter sont IDENTIQUES au photon près.")
+            print("     L'attribut 'UnscatteredPrimaryFlag' est probablement manquant dans le Digitizer.")
+        elif sum_p > 0:
+            ratio = (sum_s / sum_p) * 100
+            print(f"  ✅ Ratio Scatter/Primary : {ratio:.2f}%")
+        
+        # Vérification de la rotation
+        # On regarde où se trouve le centre de masse pour vérifier que l'objet bouge
+        coords = np.argwhere(p_2d > (p_2d.max() * 0.5))
+        if len(coords) > 0:
+            center = coords.mean(axis=0)
+            print(f"  -> Centre de masse (Y, X) : ({center[0]:.1f}, {center[1]:.1f})")
+
+        vol_p[i], vol_s[i] = p_2d, s_2d
+
     except Exception as e:
-        print(f"Erreur de lecture à l'angle {angle}: {e}")
-        break
+        print(f"  ❌ Erreur lecture : {e}")
 
     # Nettoyage des fichiers temporaires pour cet angle
     for f in base_names.values():
