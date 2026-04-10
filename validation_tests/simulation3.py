@@ -42,18 +42,18 @@ sim.world.material = "G4_AIR"
 # --- Fantôme NEMA IEC ---
 phantom = nema_p.add_iec_phantom(sim, "nema")
 phantom.user_info.translation = [[0, 0, 0]]
-rot_flip = R.from_euler('x', 180, degrees=True).as_matrix()
-phantom.user_info.rotation = [rot_flip]
+# rot_flip = R.from_euler('x', 180, degrees=True).as_matrix()
+# phantom.user_info.rotation = [rot_flip]
 
 # --- Configuration SPECT ---
 spect, colli, crystal = spect_ge_nm670.add_spect_head(sim, "spect", "megp")
-rad = 40 * cm
+rad = 60 * cm
 pos_x = rad * np.sin(np.radians(current_angle))
 pos_z = rad * np.cos(np.radians(current_angle))
 
 spect.user_info.translation = [[pos_x, 0, pos_z]]
-rot_matrix = R.from_euler('y', 180 + current_angle, degrees=True).as_matrix()
-spect.user_info.rotation = [rot_matrix]
+# rot_matrix = R.from_euler('y', 180 + current_angle, degrees=True).as_matrix()
+# spect.user_info.rotation = [rot_matrix]
 
 # --- Digitizer (Hits & Energy Windows) ---
 F = GateFilterBuilder()
@@ -138,7 +138,7 @@ proj_scat.size = [128, 128]
 proj_scat.output_filename = f"proj_scatter_angle_{int(current_angle)}.mhd"
 
 # --- Sources ---
-total_activity_37mm = 1 * MBq / sim.number_of_threads
+total_activity_37mm = 0.1 * MBq / sim.number_of_threads
 radius_ref = 18.5 * mm
 vol_ref = (4/3) * np.pi * (radius_ref**3)
 concentration = total_activity_37mm / vol_ref
@@ -163,17 +163,16 @@ sim.physics_manager.physics_list_name = "G4EmStandardPhysics_option3"
 sim.run_timing_intervals = [[0, 100 * sec]]
 sim.run()
 
-#diagnostic
-#print dans spect_hits.root : EventID, TotalEnergyDeposit, UnscatteredPrimaryFlag
-import uproot
-for file in ["spect_hits_tot.root", "spect_hits_prim.root", "spect_hits_scat.root"]:
-    print(f"\n--- Contenu de {file} ---")
-    with uproot.open(os.path.join(sim.output_dir, file)) as f:
-        tree = f[f.keys()[0]]  # Récupère le premier arbre (ex: "peak_tot")
-        event_ids = tree["EventID"].array()
-        energy_deposits = tree["TotalEnergyDeposit"].array()
-        primary_flags = tree["UnscatteredPrimaryFlag"].array()
+# diagnostic
+# import uproot
+# for file in ["spect_hits_tot.root", "spect_hits_prim.root", "spect_hits_scat.root"]:
+#     print(f"\n--- Contenu de {file} ---")
+#     with uproot.open(os.path.join(sim.output_dir, file)) as f:
+#         tree = f[f.keys()[0]]  # Récupère le premier arbre (ex: "peak_tot")
+#         event_ids = tree["EventID"].array()
+#         energy_deposits = tree["TotalEnergyDeposit"].array()
+#         primary_flags = tree["UnscatteredPrimaryFlag"].array()
         
-        print(f"Nombre total d'événements enregistrés : {len(event_ids)}")
-        for i in range(min(5, len(event_ids))):  # Affiche les 5 premiers événements
-            print(f"EventID: {event_ids[i]}, TotalEnergyDeposit: {energy_deposits[i]}, UnscatteredPrimaryFlag: {primary_flags[i]}")
+#         print(f"Nombre total d'événements enregistrés : {len(event_ids)}")
+#         for i in range(min(5, len(event_ids))):  # Affiche les 5 premiers événements
+#             print(f"EventID: {event_ids[i]}, TotalEnergyDeposit: {energy_deposits[i]}, UnscatteredPrimaryFlag: {primary_flags[i]}")
