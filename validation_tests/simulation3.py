@@ -23,7 +23,7 @@ sim = gate.Simulation()
 # --- Paramètres globaux ---
 sim.g4_verbose = False
 sim.visu = False
-sim.progress_bar = False
+sim.progress_bar = True
 sim.number_of_threads = threads
 sim.output_dir = "./nema_final_sim"
 sim.random_seed = 12345 + batch_id
@@ -56,9 +56,21 @@ rot_matrix = R.from_euler('y', 180 + current_angle, degrees=True).as_matrix()
 spect.user_info.rotation = [rot_matrix]
 
 # --- Digitizer (Hits & Energy Windows) ---
-hc = sim.add_actor("DigitizerHitsCollectionActor", f"Hits_{crystal.name}")
-hc.attached_to = crystal.name
-hc.attributes = ["EventID", "PostPosition", "TotalEnergyDeposit", "UnscatteredPrimaryFlag"]
+F = GateFilterBuilder()
+
+hc_tot = sim.add_actor("DigitizerHitsCollectionActor", f"Hits_{crystal.name}_tot")
+hc_tot.attached_to = crystal.name
+hc_tot.attributes = ["EventID", "PostPosition", "TotalEnergyDeposit", "UnscatteredPrimaryFlag"]
+
+hc_prim = sim.add_actor("DigitizerHitsCollectionActor", f"Hits_{crystal.name}_prim")
+hc_prim.attached_to = crystal.name
+hc_prim.filter = F.UnscatteredPrimaryFlag
+hc_prim.attributes = ["EventID", "PostPosition", "TotalEnergyDeposit", "UnscatteredPrimaryFlag"]
+
+hc_scat = sim.add_actor("DigitizerHitsCollectionActor", f"Hits_{crystal.name}_scat")
+hc_scat.attached_to = crystal.name
+hc_scat.filter = ~F.UnscatteredPrimaryFlag
+hc_scat.attributes = ["EventID", "PostPosition", "TotalEnergyDeposit", "UnscatteredPrimaryFlag"]
 
 # Fenêtres d'énergie TEW pour le pic 208 keV
 channels = [
@@ -67,14 +79,28 @@ channels = [
     {"name": "scatter4", "min": 224.64 * keV, "max": 243.3 * keV},
 ]
 
-cc = sim.add_actor("DigitizerEnergyWindowsActor", f"EnergyWindows_{crystal.name}")
-cc.attached_to = crystal.name
-cc.input_digi_collection = hc.name
-cc.channels = channels
-cc.attributes = ["UnscatteredPrimaryFlag"]
+cc_tot = sim.add_actor("DigitizerEnergyWindowsActor", f"EnergyWindows_{crystal.name}_tot")
+cc_tot.attached_to = crystal.name
+cc_tot.input_digi_collection = hc_tot.name
+cc_tot.channels = [{"name": "peak_tot", "min": 192.4 * keV, "max": 223.6 * keV}]
+cc_tot.attributes = ["UnscatteredPrimaryFlag"]
+cc_tot.output_filename = "spect_hits_tot.root"
 
-# --- FILTRAGE AVANCÉ (F-style) ---
-F = GateFilterBuilder()
+cc_prim = sim.add_actor("DigitizerEnergyWindowsActor", f"EnergyWindows_{crystal.name}_prim")
+cc_prim.attached_to = crystal.name
+cc_prim.input_digi_collection = hc_prim.name
+cc_prim.channels = [{"name": "peak_prim", "min": 192.4 * keV, "max": 223.6 * keV}]
+cc_prim.attributes = ["UnscatteredPrimaryFlag"]
+cc_prim.output_filename = "spect_hits_prim.root"
+
+cc_scat = sim.add_actor("DigitizerEnergyWindowsActor", f"EnergyWindows_{crystal.name}_scat")
+cc_scat.attached_to = crystal.name
+cc_scat.input_digi_collection = hc_scat.name
+cc_scat.channels = [{"name": "peak_scat", "min": 192.4 * keV, "max": 223.6 * keV}]
+cc_scat.attributes = ["UnscatteredPrimaryFlag"]
+cc_scat.output_filename = "spect_hits_scat.root"
+
+# --- FILTRAGE ---
 
 # 1. Filtre pour les photons primaires
 filter_primary = (F.UnscatteredPrimaryFlag == True)
@@ -90,7 +116,7 @@ filter_scatter = ~F.UnscatteredPrimaryFlag
 proj_total = sim.add_actor("DigitizerProjectionActor", "proj_total")
 proj_total.attached_to = crystal.name
 # proj_total.input_digi_collections = ["scatter3", "peak208", "scatter4"]
-proj_total.input_digi_collections = ["peak208"]
+proj_total.input_digi_collections = ["peak_tot"]
 proj_total.spacing = [4.4 * mm, 4.4 * mm]
 proj_total.size = [128, 128]
 proj_total.output_filename = f"proj_total_angle_{int(current_angle)}.mhd"
@@ -98,25 +124,21 @@ proj_total.output_filename = f"proj_total_angle_{int(current_angle)}.mhd"
 # B. Projection PRIMAIRE (Uniquement non-diffusés)
 proj_prim = sim.add_actor("DigitizerProjectionActor", "proj_primary")
 proj_prim.attached_to = crystal.name
-proj_prim.input_digi_collections = ["peak208"]
+proj_prim.input_digi_collections = ["peak_prim"]
 proj_prim.spacing = [4.4 * mm, 4.4 * mm]
 proj_prim.size = [128, 128]
-# proj_prim.attributes = ["UnscatteredPrimaryFlag"]
-proj_prim.filter = filter_primary
 proj_prim.output_filename = f"proj_primary_angle_{int(current_angle)}.mhd"
 
 # C. Projection SCATTER (Uniquement diffusés)
 proj_scat = sim.add_actor("DigitizerProjectionActor", "proj_scatter")
 proj_scat.attached_to = crystal.name
-proj_scat.input_digi_collections = ["peak208"] 
+proj_scat.input_digi_collections = ["peak_scat"] 
 proj_scat.spacing = [4.4 * mm, 4.4 * mm]
 proj_scat.size = [128, 128]
-# proj_scat.attributes = ["UnscatteredPrimaryFlag"]
-proj_scat.filter = ~filter_primary
 proj_scat.output_filename = f"proj_scatter_angle_{int(current_angle)}.mhd"
 
 # --- Sources ---
-total_activity_37mm = 0.01 * MBq / sim.number_of_threads
+total_activity_37mm = 1 * MBq / sim.number_of_threads
 radius_ref = 18.5 * mm
 vol_ref = (4/3) * np.pi * (radius_ref**3)
 concentration = total_activity_37mm / vol_ref
@@ -140,3 +162,18 @@ for d in diameters:
 sim.physics_manager.physics_list_name = "G4EmStandardPhysics_option3"
 sim.run_timing_intervals = [[0, 100 * sec]]
 sim.run()
+
+#diagnostic
+#print dans spect_hits.root : EventID, TotalEnergyDeposit, UnscatteredPrimaryFlag
+import uproot
+for file in ["spect_hits_tot.root", "spect_hits_prim.root", "spect_hits_scat.root"]:
+    print(f"\n--- Contenu de {file} ---")
+    with uproot.open(os.path.join(sim.output_dir, file)) as f:
+        tree = f[f.keys()[0]]  # Récupère le premier arbre (ex: "peak_tot")
+        event_ids = tree["EventID"].array()
+        energy_deposits = tree["TotalEnergyDeposit"].array()
+        primary_flags = tree["UnscatteredPrimaryFlag"].array()
+        
+        print(f"Nombre total d'événements enregistrés : {len(event_ids)}")
+        for i in range(min(5, len(event_ids))):  # Affiche les 5 premiers événements
+            print(f"EventID: {event_ids[i]}, TotalEnergyDeposit: {energy_deposits[i]}, UnscatteredPrimaryFlag: {primary_flags[i]}")
