@@ -1,11 +1,9 @@
 import opengate as gate
 import opengate.contrib.spect.ge_discovery_nm670 as spect_ge_nm670
 import opengate.contrib.phantoms.nemaiec as nema_p
-from opengate.actors.filters import GateFilterBuilder  # Import du builder
+from opengate.actors.filters import GateFilterBuilder
 from scipy.spatial.transform import Rotation as R
 import numpy as np
-import SimpleITK as sitk
-import os
 import sys
 
 # --- Arguments ---
@@ -21,18 +19,18 @@ except (IndexError, ValueError):
 sim = gate.Simulation()
 
 # --- Paramètres globaux ---
-sim.g4_verbose = False
+sim.g4_verbose = True
 sim.visu = False
-sim.progress_bar = False
+sim.progress_bar = True
 sim.number_of_threads = threads
 sim.output_dir = "./nema_final_sim"
 sim.random_seed = 12345 + batch_id
-sim.check_volumes_overlap = True
 
 mm = gate.g4_units.mm
 cm = gate.g4_units.cm
 keV = gate.g4_units.keV
 sec = gate.g4_units.second
+Bq = gate.g4_units.Bq
 MBq = 1e6 * gate.g4_units.Bq
 
 # --- Monde ---
@@ -55,12 +53,11 @@ spect.user_info.translation = [[pos_x, 0, pos_z]]
 rot_matrix = R.from_euler('y', 180 + current_angle, degrees=True).as_matrix()
 spect.user_info.rotation = [rot_matrix]
 
-# --- Digitizer (Hits & Energy Windows) ---
+# --- Digitizer ---
 hc = sim.add_actor("DigitizerHitsCollectionActor", f"Hits_{crystal.name}")
 hc.attached_to = crystal.name
 hc.attributes = ["EventID", "PostPosition", "TotalEnergyDeposit", "UnscatteredPrimaryFlag"]
 
-# Fenêtres d'énergie TEW pour le pic 208 keV
 channels = [
     {"name": "scatter3", "min": 176.46 * keV, "max": 191.36 * keV},
     {"name": "peak208", "min": 192.4 * keV, "max": 223.6 * keV},
@@ -73,18 +70,17 @@ cc.input_digi_collection = hc.name
 cc.channels = channels
 cc.attributes = ["UnscatteredPrimaryFlag"]
 
-# --- FILTRAGE AVANCÉ (F-style) ---
+# --- Filtrage ---
 F = GateFilterBuilder()
-
-# 1. Filtre pour les photons primaires
 filter_primary = (F.UnscatteredPrimaryFlag == True)
 
-
-# 2. Filtre pour les photons diffusés
-filter_scatter = ~F.UnscatteredPrimaryFlag
-
-
-# --- Projections séparées ---
+# --- Projections ---
+common_params = {
+    "attached_to": crystal.name,
+    "input_digi_collections": ["peak208"],
+    "spacing": [4.4 * mm, 4.4 * mm],
+    "size": [128, 128]
+}
 
 # Projection TOTAL (tous les photons dans les fenêtres)
 proj_total = sim.add_actor("DigitizerProjectionActor", "proj_total")
@@ -95,7 +91,7 @@ proj_total.spacing = [4.4 * mm, 4.4 * mm]
 proj_total.size = [128, 128]
 proj_total.output_filename = f"proj_total_angle_{int(current_angle)}.mhd"
 
-# B. Projection PRIMAIRE (Uniquement non-diffusés)
+# Projection PRIMAIRE (Uniquement non-diffusés)
 proj_prim = sim.add_actor("DigitizerProjectionActor", "proj_primary")
 proj_prim.attached_to = crystal.name
 proj_prim.input_digi_collections = ["peak208"]
@@ -105,7 +101,7 @@ proj_prim.size = [128, 128]
 proj_prim.filter = filter_primary
 proj_prim.output_filename = f"proj_primary_angle_{int(current_angle)}.mhd"
 
-# C. Projection SCATTER (Uniquement diffusés)
+# Projection SCATTER (Uniquement diffusés)
 proj_scat = sim.add_actor("DigitizerProjectionActor", "proj_scatter")
 proj_scat.attached_to = crystal.name
 proj_scat.input_digi_collections = ["peak208"] 
@@ -116,27 +112,32 @@ proj_scat.filter = ~filter_primary
 proj_scat.output_filename = f"proj_scatter_angle_{int(current_angle)}.mhd"
 
 # --- Sources ---
-total_activity_37mm = 0.01 * MBq / sim.number_of_threads
+# Calcul de l'activité basé sur la concentration pour la sphère de 37mm
+total_activity_37mm = 4 * Bq 
 radius_ref = 18.5 * mm
-vol_ref = (4/3) * np.pi * (radius_ref**3)
-concentration = total_activity_37mm / vol_ref
-diameters = [10, 13, 17, 22, 28, 37]
+vol_ref_ml = (4/3) * np.pi * (radius_ref**3) / (1000 * mm**3) # Volume en mL
+activity_concentration = total_activity_37mm / vol_ref_ml # Bq/mL
 
-for d in diameters:
-    r = (d / 2) * mm
-    sphere_activity = concentration * (4/3) * np.pi * (r**3)
-    src = sim.add_source("GenericSource", f"source_sphere_{d}mm")
-    src.particle = "gamma"
-    src.energy.type = "mono"
-    src.energy.mono = 208 * keV
-    src.attached_to = f"nema_sphere_{d}mm"
-    src.position.type = "sphere"
-    src.position.radius = r
-    # src.position.fill = True
-    src.direction.type = "iso"
-    src.activity = sphere_activity
+# Utilisation de la fonction du module contrib pour injecter les sources
+activities_bq_ml = [activity_concentration] * 6
+nema_p.add_spheres_sources(
+    sim, 
+    "nema", 
+    "src", 
+    spheres="all", 
+    activity_Bq_mL=activities_bq_ml,
+    source_type="GenericSource"
+)
 
-# --- Physique & Run ---
+# Correction manuelle des paramètres sources pour correspondre à votre setup (gamma 208 keV)
+for name, src in sim.source_manager.sources.items():
+    if "src_nema_sphere" in name:
+        src.particle = "gamma"
+        src.energy.type = "mono"
+        src.energy.mono = 208 * keV
+
+# --- Physique ---
 sim.physics_manager.physics_list_name = "G4EmStandardPhysics_option3"
 sim.run_timing_intervals = [[0, 100 * sec]]
+
 sim.run()

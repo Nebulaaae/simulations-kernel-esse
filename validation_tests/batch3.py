@@ -13,7 +13,7 @@ args_cmd = parser.parse_args()
 # --- CONFIGURATION ---
 IMG_SIZE = 128
 PIXEL_SIZE = 0.44 
-NB_ANGLES = 25
+NB_ANGLES = 1
 ROR = 25.0              
 ANGLES = np.linspace(0, 360, NB_ANGLES, endpoint=False)
 
