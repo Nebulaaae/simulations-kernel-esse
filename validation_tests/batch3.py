@@ -60,18 +60,22 @@ for i in range(start_idx, NB_ANGLES):
 
     try:
         # Lecture des images
+        img_t_raw = sitk.GetArrayFromImage(sitk.ReadImage(os.path.join(INPUT_FOLDER, base_names['t'])))
         img_p_raw = sitk.GetArrayFromImage(sitk.ReadImage(os.path.join(INPUT_FOLDER, base_names['p'])))
         img_s_raw = sitk.GetArrayFromImage(sitk.ReadImage(os.path.join(INPUT_FOLDER, base_names['s'])))
         
         # Squeeze pour s'assurer d'être en 2D (128, 128)
+        t_2d = np.squeeze(img_t_raw)
         p_2d = np.squeeze(img_p_raw)
         s_2d = np.squeeze(img_s_raw)
 
         # --- CALCULS DE DIAGNOSTIC ---
+        sum_t = np.sum(t_2d)
         sum_p = np.sum(p_2d)
         sum_s = np.sum(s_2d)
         
         print(f"\n[DIAGNOSTIC ANGLE {angle:.1f}°]")
+        print(f"  -> Total Comptes (Total) : {sum_t:.0f}")
         print(f"  -> Total Primary Comptes : {sum_p:.0f}")
         print(f"  -> Total Scatter Comptes : {sum_s:.0f}")
 
@@ -89,17 +93,17 @@ for i in range(start_idx, NB_ANGLES):
             center = coords.mean(axis=0)
             print(f"  -> Centre de masse (Y, X) : ({center[0]:.1f}, {center[1]:.1f})")
 
-        vol_p[i], vol_s[i] = p_2d, s_2d
+        vol_p[i], vol_s[i], vol_t[i] = p_2d, s_2d, t_2d
 
     except Exception as e:
         print(f"  ❌ Erreur lecture : {e}")
 
     # Nettoyage des fichiers temporaires pour cet angle
-    for f in base_names.values():
-        p = os.path.join(INPUT_FOLDER, f)
-        raw = p.replace(".mhd", ".raw")
-        if os.path.exists(p): os.remove(p)
-        if os.path.exists(raw): os.remove(raw)
+    # for f in base_names.values():
+    #     p = os.path.join(INPUT_FOLDER, f)
+    #     raw = p.replace(".mhd", ".raw")
+    #     if os.path.exists(p): os.remove(p)
+    #     if os.path.exists(raw): os.remove(raw)
     
     # Checkpoint
     np.save(CHECKPOINT_PATH, {'next_idx': i + 1, 'p': vol_p, 's': vol_s, 't': vol_t})
