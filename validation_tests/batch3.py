@@ -81,10 +81,10 @@ for i in range(start_idx, NB_ANGLES):
 
         if sum_p == sum_s and sum_p > 0:
             print("  ⚠️ ALERT: Primary et Scatter sont IDENTIQUES au photon près.")
-            print("     L'attribut 'UnscatteredPrimaryFlag' est probablement manquant dans le Digitizer.")
+            print("     Le filtre ne fonctionne pas.")
         elif sum_p > 0:
-            ratio = (sum_s / sum_p) * 100
-            print(f"  ✅ Ratio Scatter/Primary : {ratio:.2f}%")
+            ratio = (sum_s / sum_t) * 100
+            print(f"  ✅ Ratio Scatter/Total : {ratio:.2f}%")
         
         # Vérification de la rotation
         # On regarde où se trouve le centre de masse pour vérifier que l'objet bouge
