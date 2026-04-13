@@ -13,8 +13,8 @@ args_cmd = parser.parse_args()
 # --- CONFIGURATION ---
 IMG_SIZE = 128
 PIXEL_SIZE = 0.44 
-NB_ANGLES = 3
-ROR = 25.0              
+NB_ANGLES = 60
+ROR = 40.0              
 ANGLES = np.linspace(0, 360, NB_ANGLES, endpoint=False)
 
 INPUT_FOLDER = os.path.abspath("./nema_final_sim")
@@ -153,5 +153,3 @@ metadata = {
 
 with open(os.path.join(OUTPUT_FOLDER, "metadata_pytomography.json"), "w") as f:
     json.dump(metadata, f, indent=4)
-
-print("Batch terminé avec succès.")
