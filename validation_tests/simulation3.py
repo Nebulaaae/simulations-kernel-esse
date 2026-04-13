@@ -23,7 +23,7 @@ sim = gate.Simulation()
 # --- Paramètres globaux ---
 sim.g4_verbose = False
 sim.visu = False
-sim.progress_bar = True
+sim.progress_bar = False
 sim.number_of_threads = threads
 sim.output_dir = "./nema_final_sim"
 sim.random_seed = 12345 + batch_id
@@ -113,13 +113,13 @@ filter_scatter = ~F.UnscatteredPrimaryFlag
 # --- Projections séparées ---
 
 # Projection TOTAL (tous les photons dans les fenêtres)
-proj_total = sim.add_actor("DigitizerProjectionActor", "proj_total")
-proj_total.attached_to = crystal.name
-# proj_total.input_digi_collections = ["scatter3", "peak208", "scatter4"]
-proj_total.input_digi_collections = ["peak_tot"]
-proj_total.spacing = [4.4 * mm, 4.4 * mm]
-proj_total.size = [128, 128]
-proj_total.output_filename = f"proj_total_angle_{int(current_angle)}.mhd"
+proj_tot = sim.add_actor("DigitizerProjectionActor", "proj_tot")
+proj_tot.attached_to = crystal.name
+# proj_tot.input_digi_collections = ["scatter3", "peak208", "scatter4"]
+proj_tot.input_digi_collections = ["peak_tot"]
+proj_tot.spacing = [4.4 * mm, 4.4 * mm]
+proj_tot.size = [128, 128]
+proj_tot.output_filename = f"proj_tot_angle_{int(current_angle)}.mhd"
 
 # B. Projection PRIMAIRE (Uniquement non-diffusés)
 proj_prim = sim.add_actor("DigitizerProjectionActor", "proj_primary")
@@ -138,7 +138,7 @@ proj_scat.size = [128, 128]
 proj_scat.output_filename = f"proj_scatter_angle_{int(current_angle)}.mhd"
 
 # --- Sources ---
-total_activity_37mm = 0.01 * MBq / sim.number_of_threads
+total_activity_37mm = 8 * MBq / sim.number_of_threads
 radius_ref = 18.5 * mm
 vol_ref = (4/3) * np.pi * (radius_ref**3)
 concentration = total_activity_37mm / vol_ref
