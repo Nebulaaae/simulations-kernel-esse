@@ -82,9 +82,24 @@ channels = [
 cc_tot = sim.add_actor("DigitizerEnergyWindowsActor", f"EnergyWindows_{crystal.name}_tot")
 cc_tot.attached_to = crystal.name
 cc_tot.input_digi_collection = hc_tot.name
-cc_tot.channels = [{"name": "peak_tot", "min": 192.4 * keV, "max": 223.6 * keV}]
+# cc_tot.channels = [{"name": "peak_tot", "min": 192.4 * keV, "max": 223.6 * keV}]
+cc_tot.channels = channels
 cc_tot.attributes = ["UnscatteredPrimaryFlag"]
 cc_tot.output_filename = "spect_hits_tot.root"
+
+# cc_tot_scatter3 = sim.add_actor("DigitizerEnergyWindowsActor", f"EnergyWindows_{crystal.name}_scatter3")
+# cc_tot_scatter3.attached_to = crystal.name
+# cc_tot_scatter3.input_digi_collection = hc_tot.name
+# cc_tot_scatter3.channels = [{"name": "scatter3", "min": 176.46 * keV, "max": 191.36 * keV}]
+# cc_tot_scatter3.attributes = ["UnscatteredPrimaryFlag"]
+# cc_tot_scatter3.output_filename = "spect_hits_scatter3.root"
+
+# cc_tot_scatter4 = sim.add_actor("DigitizerEnergyWindowsActor", f"EnergyWindows_{crystal.name}_scatter4")
+# cc_tot_scatter4.attached_to = crystal.name
+# cc_tot_scatter4.input_digi_collection = hc_tot.name
+# cc_tot_scatter4.channels = [{"name": "scatter4", "min": 224.64 * keV, "max": 243.3 * keV}]
+# cc_tot_scatter4.attributes = ["UnscatteredPrimaryFlag"]
+# cc_tot_scatter4.output_filename = "spect_hits_scatter4.root"
 
 cc_prim = sim.add_actor("DigitizerEnergyWindowsActor", f"EnergyWindows_{crystal.name}_prim")
 cc_prim.attached_to = crystal.name
@@ -115,11 +130,25 @@ filter_scatter = ~F.UnscatteredPrimaryFlag
 # Projection TOTAL (tous les photons dans les fenêtres)
 proj_tot = sim.add_actor("DigitizerProjectionActor", "proj_tot")
 proj_tot.attached_to = crystal.name
-# proj_tot.input_digi_collections = ["scatter3", "peak208", "scatter4"]
-proj_tot.input_digi_collections = ["peak_tot"]
+proj_tot.input_digi_collections = ["scatter3", "peak208", "scatter4"]
+# proj_tot.input_digi_collections = ["peak_tot"]
 proj_tot.spacing = [4.4 * mm, 4.4 * mm]
 proj_tot.size = [128, 128]
-proj_tot.output_filename = f"proj_tot_angle_{int(current_angle)}.mhd"
+proj_tot.output_filename = f"proj_total_angle_{int(current_angle)}.mhd"
+
+# proj_tot_scatter3 = sim.add_actor("DigitizerProjectionActor", "proj_tot_scatter3")
+# proj_tot_scatter3.attached_to = crystal.name
+# proj_tot_scatter3.input_digi_collections = ["scatter3"]
+# proj_tot_scatter3.spacing = [4.4 * mm, 4.4 * mm]
+# proj_tot_scatter3.size = [128, 128]
+# proj_tot_scatter3.output_filename = f"proj_scatter3_angle_{int(current_angle)}.mhd"
+
+# proj_tot_scatter4 = sim.add_actor("DigitizerProjectionActor", "proj_tot_scatter4")
+# proj_tot_scatter4.attached_to = crystal.name
+# proj_tot_scatter4.input_digi_collections = ["scatter4"]
+# proj_tot_scatter4.spacing = [4.4 * mm, 4.4 * mm]
+# proj_tot_scatter4.size = [128, 128]
+# proj_tot_scatter4.output_filename = f"proj_scatter4_angle_{int(current_angle)}.mhd"
 
 # B. Projection PRIMAIRE (Uniquement non-diffusés)
 proj_prim = sim.add_actor("DigitizerProjectionActor", "proj_primary")
@@ -138,7 +167,7 @@ proj_scat.size = [128, 128]
 proj_scat.output_filename = f"proj_scatter_angle_{int(current_angle)}.mhd"
 
 # --- Sources ---
-total_activity_37mm = 8 * MBq / sim.number_of_threads
+total_activity_37mm = 0.001 * MBq / sim.number_of_threads
 radius_ref = 18.5 * mm
 vol_ref = (4/3) * np.pi * (radius_ref**3)
 concentration = total_activity_37mm / vol_ref
