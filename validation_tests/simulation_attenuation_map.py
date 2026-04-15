@@ -2,6 +2,8 @@ import opengate as gate
 import opengate.contrib.phantoms.nemaiec as nema_p
 from opengate.voxelize import voxelize_geometry, write_voxelized_geometry
 from scipy.spatial.transform import Rotation as R
+import numpy as np
+import SimpleITK as sitk
 import os
 
 # --- Configuration ---
@@ -36,11 +38,23 @@ phantom.user_info.translation = [[0, 0, 0]]
 #     "weights": [0.5998, 0.0805, 0.3197]
 # }
 # sim.volume_manager.user_info.materials.append(iec_plastic)
+import SimpleITK as sitk
+import numpy as np
+import itk
 
-volume_labels, image = voxelize_geometry(sim, extent=phantom, spacing=(1.0*mm, 1.0*mm, 1.0*mm))
+volume_labels, image_itk = voxelize_geometry(sim, extent=phantom, spacing=(1.0*mm, 1.0*mm, 1.0*mm))
+
+image_sitk = sitk.GetImageFromArray(itk.GetArrayFromImage(image_itk))
+image_sitk.SetSpacing(image_itk.GetSpacing())
+
+size = np.array(image_sitk.GetSize())
+spacing = np.array(image_sitk.GetSpacing())
+image_sitk.SetOrigin(-(size * spacing) / 2.0)
+
 voxel_mhd_path = os.path.join(output_dir, "nema.mhd")
-filenames = write_voxelized_geometry(sim, volume_labels, image, voxel_mhd_path)
-print(f"Voxelisation terminée. Fichiers : {filenames}")
+sitk.WriteImage(image_sitk, voxel_mhd_path)
+
+print(f"Voxelisation terminée avec origine centrée : {image_sitk.GetOrigin()}")
 
 for v in [name for name in sim.volume_manager.volumes.keys() if name.startswith("nema")]:
     sim.volume_manager.volumes.pop(v)

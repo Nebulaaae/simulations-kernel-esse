@@ -13,7 +13,7 @@ args_cmd = parser.parse_args()
 # --- CONFIGURATION ---
 IMG_SIZE = 128
 PIXEL_SIZE = 0.44 
-NB_ANGLES = 30
+NB_ANGLES = 32
 ROR = 40.0              
 ANGLES = np.linspace(0, 360, NB_ANGLES, endpoint=False)
 
@@ -127,8 +127,7 @@ subprocess.run([sys.executable, "simulation_attenuation_map.py"], check=True)
 def save_final_mhd(data, name):
     img = sitk.GetImageFromArray(data.astype(np.float32))
     img.SetSpacing([PIXEL_SIZE, PIXEL_SIZE, 1.0])
-    # Centrage pour PyTomography
-    origin = -(IMG_SIZE * PIXEL_SIZE) / 2 + PIXEL_SIZE / 2
+    origin = -(IMG_SIZE * PIXEL_SIZE) / 2.0
     img.SetOrigin([origin, origin, 0.0])
     sitk.WriteImage(img, os.path.join(OUTPUT_FOLDER, name))
 

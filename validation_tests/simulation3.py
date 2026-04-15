@@ -23,7 +23,7 @@ sim = gate.Simulation()
 # --- Paramètres globaux ---
 sim.g4_verbose = False
 sim.visu = False
-sim.progress_bar = False
+sim.progress_bar = True
 sim.number_of_threads = threads
 sim.output_dir = "./nema_final_sim"
 sim.random_seed = 12345 + batch_id
@@ -47,11 +47,31 @@ phantom.user_info.translation = [[0, 0, 0]]
 
 # --- Configuration SPECT ---
 spect, colli, crystal = spect_ge_nm670.add_spect_head(sim, "spect", "megp")
-rad = 40 * cm
-pos_x = rad * np.sin(np.radians(current_angle))
-pos_z = rad * np.cos(np.radians(current_angle))
+# rad = 40 * cm
+# pos_x = rad * np.sin(np.radians(current_angle))
+# pos_z = rad * np.cos(np.radians(current_angle))
+
+# spect.user_info.translation = [[pos_x, 0, pos_z]]
+# rot_matrix = R.from_euler('y', 180 + current_angle, degrees=True).as_matrix()
+# spect.user_info.rotation = [rot_matrix]
+
+# Rayon de rotation
+rad = 40 * gate.g4_units.cm 
+
+# Conversion en radians pour les fonctions numpy
+theta_rad = np.radians(current_angle)
+
+# Position : Assurez-vous que l'axe Y est bien l'axe de rotation (longitudinal)
+# Dans SPECT standard, le détecteur tourne dans le plan (X, Z)
+pos_x = rad * np.sin(theta_rad)
+pos_z = rad * np.cos(theta_rad)
 
 spect.user_info.translation = [[pos_x, 0, pos_z]]
+
+# Rotation de la tête : 
+# 1. 'y' est l'axe de rotation.
+# 2. On ajoute 180 pour que la face du détecteur regarde vers (0,0,0).
+# 3. 'current_angle' doit correspondre au sens de translation.
 rot_matrix = R.from_euler('y', 180 + current_angle, degrees=True).as_matrix()
 spect.user_info.rotation = [rot_matrix]
 
@@ -167,11 +187,12 @@ proj_scat.size = [128, 128]
 proj_scat.output_filename = f"proj_scatter_angle_{int(current_angle)}.mhd"
 
 # --- Sources ---
-total_activity_37mm = 0.001 * MBq / sim.number_of_threads
+total_activity_37mm = 0.1 * MBq / sim.number_of_threads
 radius_ref = 18.5 * mm
 vol_ref = (4/3) * np.pi * (radius_ref**3)
 concentration = total_activity_37mm / vol_ref
 diameters = [10, 13, 17, 22, 28, 37]
+diameters = [37]
 
 for d in diameters:
     r = (d / 2) * mm
