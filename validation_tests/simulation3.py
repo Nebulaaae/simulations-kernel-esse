@@ -23,11 +23,11 @@ sim = gate.Simulation()
 # --- Paramètres globaux ---
 sim.g4_verbose = False
 sim.visu = False
-sim.progress_bar = True
+sim.progress_bar = False
 sim.number_of_threads = threads
 sim.output_dir = "./nema_final_sim"
 sim.random_seed = 12345 + batch_id
-sim.check_volumes_overlap = True
+sim.check_volumes_overlap = False
 
 mm = gate.g4_units.mm
 cm = gate.g4_units.cm
@@ -47,26 +47,17 @@ phantom.user_info.translation = [[0, 0, 0]]
 
 # --- Configuration SPECT ---
 spect, colli, crystal = spect_ge_nm670.add_spect_head(sim, "spect", "megp")
-# rad = 40 * cm
-# pos_x = rad * np.sin(np.radians(current_angle))
-# pos_z = rad * np.cos(np.radians(current_angle))
+rad = 40 * cm
 
-# spect.user_info.translation = [[pos_x, 0, pos_z]]
-# rot_matrix = R.from_euler('y', 180 + current_angle, degrees=True).as_matrix()
-# spect.user_info.rotation = [rot_matrix]
+pos_x = rad * np.sin(np.radians(current_angle))
+pos_y = rad * np.cos(np.radians(current_angle))
+spect.user_info.translation = [[-pos_x, pos_y, 0]]
 
-# Rayon de rotation
-rad = 40 * gate.g4_units.cm 
+base_tilt = R.from_euler('x', 90, degrees=True)
+orbit_rot = R.from_euler('z', current_angle, degrees=True)
+rot_matrix = (orbit_rot * base_tilt).as_matrix()
 
-# Conversion en radians pour les fonctions numpy
-theta_rad = np.radians(current_angle)
-
-# Position : Assurez-vous que l'axe Y est bien l'axe de rotation (longitudinal)
-# Dans SPECT standard, le détecteur tourne dans le plan (X, Z)
-pos_x = rad * np.sin(theta_rad)
-pos_z = rad * np.cos(theta_rad)
-
-spect.user_info.translation = [[pos_x, 0, pos_z]]
+spect.user_info.rotation = [rot_matrix]
 
 # Rotation de la tête : 
 # 1. 'y' est l'axe de rotation.
@@ -187,7 +178,7 @@ proj_scat.size = [128, 128]
 proj_scat.output_filename = f"proj_scatter_angle_{int(current_angle)}.mhd"
 
 # --- Sources ---
-total_activity_37mm = 0.1 * MBq / sim.number_of_threads
+total_activity_37mm = 8 * MBq / sim.number_of_threads
 radius_ref = 18.5 * mm
 vol_ref = (4/3) * np.pi * (radius_ref**3)
 concentration = total_activity_37mm / vol_ref
