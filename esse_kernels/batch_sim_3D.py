@@ -32,7 +32,9 @@ RUNS_PER_SLICE = 5
 Z_POSITIONS = np.linspace(-140, 140, NB_SLICES) 
 
 CHECKPOINT_INTERVAL = 10
-checkpoint_path = os.path.join(OUTPUT_FOLDER, "esse_kernels_checkpoint.npy")
+checkpoint_path = os.path.join(OUTPUT_FOLDER, "esse_kernels_checkpoint.npy.tmp.npy")
+print(f"Checkpoint path: {checkpoint_path}")
+print(os._exists(checkpoint_path))
 
 def filter_and_extract(depth):
     scatter_path = os.path.join(OUTPUT_FOLDER, "phantom_scatters.root")
@@ -95,60 +97,97 @@ def filter_and_extract(depth):
 final_kernels = np.zeros((KRNL_SIZE, NB_SLICES, KRNL_SIZE))
 amu_kernels_accumulation = np.zeros((KRNL_SIZE, NB_SLICES, KRNL_SIZE))
 final_amu_kernels = np.zeros((KRNL_SIZE, NB_SLICES, KRNL_SIZE))
+# --- INITIALISATION & REPRISE ---
+final_kernels = np.zeros((KRNL_SIZE, NB_SLICES, KRNL_SIZE))
+amu_kernels_accumulation = np.zeros((KRNL_SIZE, NB_SLICES, KRNL_SIZE))
+start_slice = 0
+start_run = 0
 
-# --- NORMALISATION DANS L'AIR ---
-print("\n>>> Phase de normalisation : Simulation dans l'AIR")
-nb_air_total = 0
-AIR_RUNS = 1   # Plusieurs runs pour réduire la variance statistique
+if os.path.exists(checkpoint_path):
+    print(f">>> Chargement du checkpoint : {checkpoint_path}")
+    cp = np.load(checkpoint_path, allow_pickle=True).item()
+    
+    final_kernels = cp['kernels']
+    amu_kernels_accumulation = cp['amu_accum']
+    norm_factor = cp['norm_factor']
+    
+    # On reprend à la slice suivante si le dernier run de la slice était fini, 
+    # ou on gère la reprise au sein de la slice.
+    last_run_idx = cp['last_run']
+    last_slice_idx = cp['last_slice']
+    
+    if last_run_idx == RUNS_PER_SLICE - 1:
+        start_slice = last_slice_idx + 1
+        start_run = 0
+    else:
+        start_slice = last_slice_idx
+        start_run = last_run_idx + 1
+    print(f"Reprise à partir de : Slice {start_slice + 1}, Run {start_run + 1}")
+else:
+    print(">>> Aucun checkpoint trouvé. Démarrage d'une nouvelle simulation.")
+    # Exécuter ici votre logique de calcul de norm_factor (Phase de normalisation AIR)
 
-for a in range(AIR_RUNS):
-    env = os.environ.copy()
-    env["SOURCE_Z_POS"] = "0"
-    subprocess.run([sys.executable, SIM_SCRIPT_AIR], env=env, check=True, cwd=os.path.dirname(SIM_SCRIPT_AIR))
-    spect_air_path = os.path.join(OUTPUT_FOLDER, "spect.root")
-    with uproot.open(spect_air_path) as f:
-        tree = f["peak208"]
-        # directions_z = tree.arrays(["PostDirection_Z"], library="pd")
-        # count_filtered = (np.abs(directions_z['PostDirection_Z']) > 0.999).sum()
-        # nb_air_total += count_filtered
-        nb_air_total += tree.num_entries
-        # print(f"  Run AIR {a+1}: {count_filtered} photons perpendiculaires retenus.")
+    # --- NORMALISATION DANS L'AIR ---
+    print("\n>>> Phase de normalisation : Simulation dans l'AIR")
+    nb_air_total = 0
+    AIR_RUNS = 1   # Plusieurs runs pour réduire la variance statistique
 
-    if os.path.exists(spect_air_path):
-        os.remove(spect_air_path)
+    for a in range(AIR_RUNS):
+        env = os.environ.copy()
+        env["SOURCE_Z_POS"] = "0"
+        subprocess.run([sys.executable, SIM_SCRIPT_AIR], env=env, check=True, cwd=os.path.dirname(SIM_SCRIPT_AIR))
+        spect_air_path = os.path.join(OUTPUT_FOLDER, "spect.root")
+        with uproot.open(spect_air_path) as f:
+            tree = f["peak208"]
+            # directions_z = tree.arrays(["PostDirection_Z"], library="pd")
+            # count_filtered = (np.abs(directions_z['PostDirection_Z']) > 0.999).sum()
+            # nb_air_total += count_filtered
+            nb_air_total += tree.num_entries
+            # print(f"  Run AIR {a+1}: {count_filtered} photons perpendiculaires retenus.")
 
-# Facteur de normalisation par run 
-norm_factor = (nb_air_total / AIR_RUNS) * RUNS_PER_SLICE
-print(f"Facteur de normalisation calculé : {norm_factor} photons")
+        if os.path.exists(spect_air_path):
+            os.remove(spect_air_path)
+
+    # Facteur de normalisation par run 
+    norm_factor = (nb_air_total / AIR_RUNS) * RUNS_PER_SLICE
+    print(f"Facteur de normalisation calculé : {norm_factor} photons")
 
 # --- GÉNÉRATION DES KERNELS PAR PROFONDEUR ---
-for s_idx, z_mm in enumerate(Z_POSITIONS):
-    # depth : distance entre source et face de sortie (z=150mm)
+for s_idx in range(start_slice, NB_SLICES):
+    z_mm = Z_POSITIONS[s_idx]
     depth = (150.0 - z_mm) / 10.0
+    
     print(f"\n=== SLICE {s_idx+1}/{NB_SLICES} (Z={z_mm}mm, Profondeur={depth:.2f}cm) ===")
-
-    for r_idx in range(RUNS_PER_SLICE):
+    
+    # Déterminer le run de départ pour cette slice (start_run seulement pour la première slice reprise)
+    current_start_run = start_run if s_idx == start_slice else 0
+    
+    for r_idx in range(current_start_run, RUNS_PER_SLICE):
         total_run_idx = s_idx * RUNS_PER_SLICE + r_idx + 1
         
         env = os.environ.copy()
         env["SOURCE_Z_POS"] = str(z_mm)
 
         try:
+            # Exécution de la simulation Gate/Python
             subprocess.run([sys.executable, SIM_SCRIPT], env=env, check=True, cwd=os.path.dirname(SIM_SCRIPT))
             
+            # Extraction des données du ROOT
             h_slice, h_delta_num, _ = filter_and_extract(depth)
+            
             if h_slice is not None:
+                # Accumulation dans les matrices 3D
                 final_kernels[:, s_idx, :] += h_slice
                 amu_kernels_accumulation[:, s_idx, :] += h_delta_num
 
-            # Nettoyage
+            # Nettoyage immédiat des fichiers volumineux
             for f in ["spect.root", "phantom_scatters.root"]:
                 p = os.path.join(OUTPUT_FOLDER, f)
                 if os.path.exists(p): os.remove(p)
 
+            # --- SAUVEGARDE DU CHECKPOINT ---
             if total_run_idx % CHECKPOINT_INTERVAL == 0:
                 checkpoint_data = {
-                    'iteration': total_run_idx,
                     'last_slice': s_idx,
                     'last_run': r_idx,
                     'kernels': final_kernels,
@@ -156,20 +195,26 @@ for s_idx, z_mm in enumerate(Z_POSITIONS):
                     'norm_factor': norm_factor
                 }
                 
+                # Utilisation d'un file object pour éviter l'ajout automatique de .npy par numpy
                 temp_path = checkpoint_path + ".tmp"
-                np.save(temp_path, checkpoint_data)
-                os.replace(temp_path, checkpoint_path)
+                with open(temp_path, 'wb') as f:
+                    np.save(f, checkpoint_data)
                 
-                print(f"[Checkpoint] Run {total_run_idx} (Slice {s_idx+1}) sauvegardé.")
+                os.replace(temp_path, checkpoint_path)
+                print(f"[Checkpoint] Run {total_run_idx} (Slice {s_idx+1}, Run {r_idx+1}) sauvegardé.")
 
         except Exception as e:
-            print(f"Erreur Slice {s_idx} Run {r_idx}: {e}")
+            print(f"!!! Erreur critique Slice {s_idx} Run {r_idx}: {e}")
+            # Optionnel : raise e si vous voulez stopper net en cas de problème système
 
-    final_amu_kernels[:, s_idx, :] = np.divide(
-        amu_kernels_accumulation[:, s_idx, :], final_kernels[:, s_idx, :], 
-        out=np.zeros_like(amu_kernels_accumulation[:, s_idx, :]), 
-        where=final_kernels[:, s_idx, :] != 0
-    )
+# --- POST-TRAITEMENT GLOBAL (Une seule fois après toutes les slices) ---
+print("\n>>> Calcul final des kernels amu (a_mu)...")
+final_amu_kernels = np.divide(
+    amu_kernels_accumulation, 
+    final_kernels, 
+    out=np.zeros_like(amu_kernels_accumulation), 
+    where=final_kernels != 0
+)
 
 # 3. GÉNÉRATION DE L'IMAGE DE CONTRÔLE
 print("\n>>> Génération de l'image de diagnostic : diag_esse.png")
