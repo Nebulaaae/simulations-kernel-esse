@@ -13,7 +13,7 @@ args_cmd = parser.parse_args()
 # --- CONFIGURATION ---
 IMG_SIZE = 128
 PIXEL_SIZE = 0.44 
-NB_ANGLES = 32
+NB_ANGLES = 64
 ROR = 40.0              
 ANGLES = np.linspace(0, 360, NB_ANGLES, endpoint=False)
 
@@ -148,7 +148,7 @@ metadata = {
         "pixel_size_cm": float(PIXEL_SIZE),
         "matrix_size": int(IMG_SIZE), 
         "num_slices_z": int(num_z), 
-        "voxel_size_cm": float(mu_img.GetSpacing()[0] / 10.0)
+        "voxel_size_cm": float(mu_img.GetSpacing()[0] / 10.0)   
     },
     "geometry": {
         "angles": ANGLES.tolist(),
