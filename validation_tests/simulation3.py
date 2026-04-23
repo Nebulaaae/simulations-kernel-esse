@@ -23,11 +23,11 @@ sim = gate.Simulation()
 # --- Paramètres globaux ---
 sim.g4_verbose = False
 sim.visu = False
-sim.progress_bar = False
+sim.progress_bar = True
 sim.number_of_threads = threads
 sim.output_dir = "./nema_final_sim"
 sim.random_seed = 12345 + batch_id
-sim.check_volumes_overlap = False
+sim.check_volumes_overlap = True
 
 mm = gate.g4_units.mm
 cm = gate.g4_units.cm
@@ -47,7 +47,7 @@ phantom.user_info.translation = [[0, 0, 0]]
 
 # --- Configuration SPECT ---
 spect, colli, crystal = spect_ge_nm670.add_spect_head(sim, "spect", "megp")
-rad = 40 * cm
+rad = 45 * cm
 
 pos_x = rad * np.sin(np.radians(current_angle))
 pos_y = rad * np.cos(np.radians(current_angle))
@@ -178,7 +178,7 @@ proj_scat.size = [128, 128]
 proj_scat.output_filename = f"proj_scatter_angle_{int(current_angle)}.mhd"
 
 # --- Sources ---
-total_activity_37mm = 8 * MBq / sim.number_of_threads
+total_activity_37mm = 2 * MBq / sim.number_of_threads
 radius_ref = 18.5 * mm
 vol_ref = (4/3) * np.pi * (radius_ref**3)
 concentration = total_activity_37mm / vol_ref
