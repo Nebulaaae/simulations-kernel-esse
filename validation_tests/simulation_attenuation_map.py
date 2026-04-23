@@ -44,13 +44,19 @@ import itk
 
 volume_labels, image_itk = voxelize_geometry(sim, extent=phantom, spacing=(1.0*mm, 1.0*mm, 1.0*mm))
 
-image_sitk = sitk.GetImageFromArray(itk.GetArrayFromImage(image_itk))
-image_sitk.SetSpacing(image_itk.GetSpacing())
+array = itk.array_from_image(image_itk)
+image_sitk = sitk.GetImageFromArray(array)
 
+spacing_itk = image_itk.GetSpacing()
+image_sitk.SetSpacing([spacing_itk[0], spacing_itk[1], spacing_itk[2]])
+
+# Calcul du centrage strict
 size = np.array(image_sitk.GetSize())
 spacing = np.array(image_sitk.GetSpacing())
-image_sitk.SetOrigin(-(size * spacing) / 2.0)
+new_origin = -(size * spacing) / 2.0
+image_sitk.SetOrigin(new_origin)
 
+# Écriture
 voxel_mhd_path = os.path.join(output_dir, "nema.mhd")
 sitk.WriteImage(image_sitk, voxel_mhd_path)
 
@@ -58,8 +64,6 @@ print(f"Voxelisation terminée avec origine centrée : {image_sitk.GetOrigin()}"
 
 for v in [name for name in sim.volume_manager.volumes.keys() if name.startswith("nema")]:
     sim.volume_manager.volumes.pop(v)
-
-
 
 
 # voxel_json_path = os.path.join(output_dir, "nema_labels.json")
