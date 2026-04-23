@@ -47,7 +47,7 @@ phantom.user_info.translation = [[0, 0, 0]]
 
 # --- Configuration SPECT ---
 spect, colli, crystal = spect_ge_nm670.add_spect_head(sim, "spect", "megp")
-rad = 45 * cm
+rad = 40 * cm
 
 pos_x = rad * np.sin(np.radians(current_angle))
 pos_y = rad * np.cos(np.radians(current_angle))
@@ -63,8 +63,7 @@ spect.user_info.rotation = [rot_matrix]
 # 1. 'y' est l'axe de rotation.
 # 2. On ajoute 180 pour que la face du détecteur regarde vers (0,0,0).
 # 3. 'current_angle' doit correspondre au sens de translation.
-rot_matrix = R.from_euler('y', 180 + current_angle, degrees=True).as_matrix()
-spect.user_info.rotation = [rot_matrix]
+
 
 # --- Digitizer (Hits & Energy Windows) ---
 F = GateFilterBuilder()
