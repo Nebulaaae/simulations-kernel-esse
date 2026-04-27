@@ -5,8 +5,15 @@ from scipy.spatial.transform import Rotation as R
 import numpy as np
 import SimpleITK as sitk
 import os
+import sys
 
 # --- Configuration ---
+try:
+    pixel_size = float(sys.argv[1]) * gate.g4_units.mm
+
+except (IndexError, ValueError):
+    pixel_size = 0.44 * gate.g4_units.mm
+
 output_dir = "./nema_maps"
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
@@ -44,15 +51,16 @@ import numpy as np
 import itk
 
 IMG_SIZE = 128
-PIXEL_SIZE = 0.44 
+PIXEL_SIZE = pixel_size
 
 # 1. Définition de la taille (ex: 563.2 mm pour couvrir 128 pixels de 4.4 mm)
-size_mm = IMG_SIZE * PIXEL_SIZE * 10 
+size_mm = IMG_SIZE * PIXEL_SIZE
 
 # 2. Création d'une boîte virtuelle pour définir l'étendue
 # On l'ajoute au monde, centrée par défaut à [0,0,0]
 container = sim.add_volume("Box", "external_box")
-container.size = [size_mm] * 3
+# container.size = [size_mm] * 3
+container.size = [size_mm* mm, size_mm* mm, size_mm * mm]
 container.material = "G4_AIR" # Important : Air pour ne pas fausser la mu-map
 container.translation = [0, 0, 0]
 
@@ -65,7 +73,7 @@ phantom.mother = "external_box"
 volume_labels, image_itk = voxelize_geometry(
     sim, 
     extent=container, 
-    spacing=(1.0*mm, 1.0*mm, 1.0*mm)
+    spacing=(PIXEL_SIZE*mm, PIXEL_SIZE*mm, PIXEL_SIZE*mm)
 )
 
 array = itk.array_from_image(image_itk)
@@ -88,12 +96,6 @@ print(f"Voxelisation terminée avec origine centrée : {image_sitk.GetOrigin()}"
 
 for v in [name for name in sim.volume_manager.volumes.keys() if name.startswith("nema") or name.startswith("external_box")]:
     sim.volume_manager.volumes.pop(v)
-
-
-
-
-# voxel_json_path = os.path.join(output_dir, "nema_labels.json")
-# patient.set_materials_from_voxelisation(voxel_json_path)
 
 sim.volume_manager.add_material_database(os.path.join(output_dir, "nema.db"))
 patient = sim.add_volume("ImageVolume", "patient_vox")

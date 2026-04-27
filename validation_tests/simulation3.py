@@ -13,13 +13,17 @@ try:
     current_angle = float(sys.argv[1])
     batch_id = int(sys.argv[2])
     threads = int(sys.argv[4]) if len(sys.argv) > 4 else 8
+    base_activity = float(sys.argv[5]) * 1e6 * gate.g4_units.Bq
+    pixel_size = float(sys.argv[6]) * gate.g4_units.mm
+
 except (IndexError, ValueError):
     current_angle = 0.0
     batch_id = 0
     threads = 8
+    base_activity = 12 * 1e6 * gate.g4_units.Bq
+    pixel_size = 0.44 * gate.g4_units.mm
 
 sim = gate.Simulation()
-
 # --- Paramètres globaux ---
 sim.g4_verbose = False
 sim.visu = False
@@ -142,7 +146,7 @@ proj_tot = sim.add_actor("DigitizerProjectionActor", "proj_tot")
 proj_tot.attached_to = crystal.name
 proj_tot.input_digi_collections = ["scatter3", "peak208", "scatter4"]
 # proj_tot.input_digi_collections = ["peak_tot"]
-proj_tot.spacing = [4.4 * mm, 4.4 * mm]
+proj_tot.spacing = [pixel_size * mm, pixel_size * mm]
 proj_tot.size = [128, 128]
 proj_tot.output_filename = f"proj_total_angle_{int(current_angle)}.mhd"
 
@@ -164,7 +168,7 @@ proj_tot.output_filename = f"proj_total_angle_{int(current_angle)}.mhd"
 proj_prim = sim.add_actor("DigitizerProjectionActor", "proj_primary")
 proj_prim.attached_to = crystal.name
 proj_prim.input_digi_collections = ["peak_prim"]
-proj_prim.spacing = [4.4 * mm, 4.4 * mm]
+proj_prim.spacing = [pixel_size * mm, pixel_size * mm]
 proj_prim.size = [128, 128]
 proj_prim.output_filename = f"proj_primary_angle_{int(current_angle)}.mhd"
 
@@ -172,12 +176,12 @@ proj_prim.output_filename = f"proj_primary_angle_{int(current_angle)}.mhd"
 proj_scat = sim.add_actor("DigitizerProjectionActor", "proj_scatter")
 proj_scat.attached_to = crystal.name
 proj_scat.input_digi_collections = ["peak_scat"] 
-proj_scat.spacing = [4.4 * mm, 4.4 * mm]
+proj_scat.spacing = [pixel_size * mm, pixel_size * mm]
 proj_scat.size = [128, 128]
 proj_scat.output_filename = f"proj_scatter_angle_{int(current_angle)}.mhd"
 
 # --- Sources ---
-total_activity_37mm = 2 * MBq / sim.number_of_threads
+total_activity_37mm = base_activity / sim.number_of_threads
 radius_ref = 18.5 * mm
 vol_ref = (4/3) * np.pi * (radius_ref**3)
 concentration = total_activity_37mm / vol_ref
