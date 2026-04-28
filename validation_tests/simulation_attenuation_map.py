@@ -12,7 +12,7 @@ try:
     pixel_size = float(sys.argv[1]) * gate.g4_units.mm
 
 except (IndexError, ValueError):
-    pixel_size = 0.44 * gate.g4_units.mm
+    pixel_size = 4.4 * gate.g4_units.mm
 
 output_dir = "./nema_maps"
 if not os.path.exists(output_dir):
