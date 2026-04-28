@@ -13,11 +13,11 @@ args_cmd = parser.parse_args()
 # --- CONFIGURATION ---
 IMG_SIZE = 128
 PIXEL_SIZE = 4.4  # cm 
-NB_ANGLES = 10
+NB_ANGLES = 32
 ROR = 40.0              
 ANGLES = np.linspace(0, 360, NB_ANGLES, endpoint=False)
 
-BASE_ACTIVITY_Bq = 0.1
+BASE_ACTIVITY_Bq = 6
 
 INPUT_FOLDER = os.path.abspath("./nema_final_sim")
 OUTPUT_FOLDER = os.path.abspath("./output_spect")
@@ -147,7 +147,7 @@ num_z = mu_img.GetSize()[2]
 metadata = {
     "simulation_params": {
         "num_projections": int(NB_ANGLES),
-        "pixel_size_cm": float(PIXEL_SIZE),
+        "pixel_size_cm": float(PIXEL_SIZE)/10.0,
         "matrix_size": int(IMG_SIZE), 
         # "num_slices_z": int(num_z), 
         "voxel_size_cm": float(mu_img.GetSpacing()[0] / 10.0)   
