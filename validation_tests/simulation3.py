@@ -146,7 +146,7 @@ proj_tot = sim.add_actor("DigitizerProjectionActor", "proj_tot")
 proj_tot.attached_to = crystal.name
 proj_tot.input_digi_collections = ["scatter3", "peak208", "scatter4"]
 # proj_tot.input_digi_collections = ["peak_tot"]
-proj_tot.spacing = [pixel_size * mm, pixel_size * mm]
+proj_tot.spacing = [pixel_size, pixel_size]
 proj_tot.size = [128, 128]
 proj_tot.output_filename = f"proj_total_angle_{int(current_angle)}.mhd"
 
@@ -168,7 +168,7 @@ proj_tot.output_filename = f"proj_total_angle_{int(current_angle)}.mhd"
 proj_prim = sim.add_actor("DigitizerProjectionActor", "proj_primary")
 proj_prim.attached_to = crystal.name
 proj_prim.input_digi_collections = ["peak_prim"]
-proj_prim.spacing = [pixel_size * mm, pixel_size * mm]
+proj_prim.spacing = [pixel_size, pixel_size]
 proj_prim.size = [128, 128]
 proj_prim.output_filename = f"proj_primary_angle_{int(current_angle)}.mhd"
 
@@ -176,7 +176,7 @@ proj_prim.output_filename = f"proj_primary_angle_{int(current_angle)}.mhd"
 proj_scat = sim.add_actor("DigitizerProjectionActor", "proj_scatter")
 proj_scat.attached_to = crystal.name
 proj_scat.input_digi_collections = ["peak_scat"] 
-proj_scat.spacing = [pixel_size * mm, pixel_size * mm]
+proj_scat.spacing = [pixel_size, pixel_size]
 proj_scat.size = [128, 128]
 proj_scat.output_filename = f"proj_scatter_angle_{int(current_angle)}.mhd"
 
@@ -186,7 +186,7 @@ radius_ref = 18.5 * mm
 vol_ref = (4/3) * np.pi * (radius_ref**3)
 concentration = total_activity_37mm / vol_ref
 diameters = [10, 13, 17, 22, 28, 37]
-diameters = [37]
+# diameters = [37]
 
 for d in diameters:
     r = (d / 2) * mm
