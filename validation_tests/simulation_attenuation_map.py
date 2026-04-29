@@ -52,6 +52,7 @@ import itk
 
 IMG_SIZE = 128
 PIXEL_SIZE = pixel_size
+# PIXEL_SIZE = pixel_size / 2.0
 
 # 1. Définition de la taille (ex: 563.2 mm pour couvrir 128 pixels de 4.4 mm)
 size_mm = IMG_SIZE * PIXEL_SIZE
@@ -60,8 +61,8 @@ size_mm = IMG_SIZE * PIXEL_SIZE
 # On l'ajoute au monde, centrée par défaut à [0,0,0]
 container = sim.add_volume("Box", "external_box")
 # container.size = [size_mm] * 3
-container.size = [size_mm* mm, size_mm* mm, size_mm * mm]
-container.material = "G4_AIR" # Important : Air pour ne pas fausser la mu-map
+container.size = [size_mm, size_mm, size_mm]
+container.material = "G4_AIR"
 container.translation = [0, 0, 0]
 
 # 2. Créer le Fantôme comme ENFANT de la boîte
@@ -73,7 +74,7 @@ phantom.mother = "external_box"
 volume_labels, image_itk = voxelize_geometry(
     sim, 
     extent=container, 
-    spacing=(PIXEL_SIZE*mm, PIXEL_SIZE*mm, PIXEL_SIZE*mm)
+    spacing=(PIXEL_SIZE, PIXEL_SIZE, PIXEL_SIZE)
 )
 
 array = itk.array_from_image(image_itk)
@@ -91,6 +92,8 @@ image_sitk.SetOrigin(new_origin)
 # Écriture
 voxel_mhd_path = os.path.join(output_dir, "nema.mhd")
 sitk.WriteImage(image_sitk, voxel_mhd_path)
+filenames = write_voxelized_geometry(sim, volume_labels, image_itk, voxel_mhd_path)
+print(f"Voxelisation terminée. Fichiers : {filenames}")
 
 print(f"Voxelisation terminée avec origine centrée : {image_sitk.GetOrigin()}")
 
