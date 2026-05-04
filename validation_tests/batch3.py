@@ -11,13 +11,13 @@ parser.add_argument("--restore", action="store_true", help="Reprendre à partir 
 args_cmd = parser.parse_args()
 
 # --- CONFIGURATION ---
-IMG_SIZE = 256
-PIXEL_SIZE = 2.2  # cm 
-NB_ANGLES = 64
+IMG_SIZE = 128
+PIXEL_SIZE = 4.4  # cm 
+NB_ANGLES = 10
 ROR = 40.0              
 ANGLES = np.linspace(0, 360, NB_ANGLES, endpoint=False)
 
-BASE_ACTIVITY_MBq = 11.5
+BASE_ACTIVITY_MBq = 0.1
 
 INPUT_FOLDER = os.path.abspath("./nema_final_sim")
 OUTPUT_FOLDER = os.path.abspath("./output_spect")
