@@ -10,9 +10,11 @@ import sys
 # --- Configuration ---
 try:
     pixel_size = float(sys.argv[1]) * gate.g4_units.mm
+    image_size = int(sys.argv[2])
 
 except (IndexError, ValueError):
     pixel_size = 4.4 * gate.g4_units.mm
+    image_size = 128
 
 output_dir = "./nema_maps"
 if not os.path.exists(output_dir):
@@ -50,7 +52,7 @@ import SimpleITK as sitk
 import numpy as np
 import itk
 
-IMG_SIZE = 128
+IMG_SIZE = image_size
 PIXEL_SIZE = pixel_size
 # PIXEL_SIZE = pixel_size / 2.0
 

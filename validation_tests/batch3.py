@@ -11,13 +11,13 @@ parser.add_argument("--restore", action="store_true", help="Reprendre à partir 
 args_cmd = parser.parse_args()
 
 # --- CONFIGURATION ---
-IMG_SIZE = 128
-PIXEL_SIZE = 4.4  # cm 
-NB_ANGLES = 32
+IMG_SIZE = 256
+PIXEL_SIZE = 2.2  # cm 
+NB_ANGLES = 64
 ROR = 40.0              
 ANGLES = np.linspace(0, 360, NB_ANGLES, endpoint=False)
 
-BASE_ACTIVITY_Bq = 6
+BASE_ACTIVITY_MBq = 11.5
 
 INPUT_FOLDER = os.path.abspath("./nema_final_sim")
 OUTPUT_FOLDER = os.path.abspath("./output_spect")
@@ -53,7 +53,7 @@ for i in range(start_idx, NB_ANGLES):
     
     # Exécution de la simulation OpenGate pour cet angle
     # On passe l'angle et un batch_id pour la seed
-    subprocess.run([sys.executable, SIM_SCRIPT, str(angle), str(i), "0", "8", str(BASE_ACTIVITY_Bq), str(PIXEL_SIZE)], check=True)
+    subprocess.run([sys.executable, SIM_SCRIPT, str(angle), str(i), "0", "8", str(BASE_ACTIVITY_MBq), str(PIXEL_SIZE), str(IMG_SIZE)], check=True)
 
     # Récupération des fichiers générés par les filtres natifs
     base_names = {
@@ -124,7 +124,7 @@ for i in range(start_idx, NB_ANGLES):
 
 # --- ATTÉNUATION ET MÉTADONNÉES ---
 print("Génération de la carte d'atténuation...")
-subprocess.run([sys.executable, "simulation_attenuation_map.py", str(PIXEL_SIZE)], check=True)
+subprocess.run([sys.executable, "simulation_attenuation_map.py", str(PIXEL_SIZE), str(IMG_SIZE)], check=True)
 
 def save_final_mhd(data, name):
     img = sitk.GetImageFromArray(data.astype(np.float32))
