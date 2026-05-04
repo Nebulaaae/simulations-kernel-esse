@@ -29,7 +29,7 @@ sim = gate.Simulation()
 # --- Paramètres globaux ---
 sim.g4_verbose = False
 sim.visu = False
-sim.progress_bar = False
+sim.progress_bar = True
 sim.number_of_threads = threads
 sim.output_dir = "./nema_final_sim"
 sim.random_seed = 12345 + batch_id
@@ -53,22 +53,19 @@ phantom.user_info.translation = [[0, 0, 0]]
 
 # --- Configuration SPECT ---
 spect, colli, crystal = spect_ge_nm670.add_spect_head(sim, "spect", "megp")
-rad = 40 * cm
+rad = 45 * cm
 
 pos_x = rad * np.sin(np.radians(current_angle))
 pos_y = rad * np.cos(np.radians(current_angle))
 spect.user_info.translation = [[-pos_x, pos_y, 0]]
 
-base_tilt = R.from_euler('x', 90, degrees=True)
-orbit_rot = R.from_euler('z', current_angle, degrees=True)
-rot_matrix = (orbit_rot * base_tilt).as_matrix()
+# base_tilt = R.from_euler('x', 90, degrees=True)
+# orbit_rot = R.from_euler('z', current_angle, degrees=True)
+# rot_matrix = (orbit_rot * base_tilt).as_matrix()
+
+rot_matrix = R.from_euler('y', 180 + current_angle, degrees=True).as_matrix()
 
 spect.user_info.rotation = [rot_matrix]
-
-# Rotation de la tête : 
-# 1. 'y' est l'axe de rotation.
-# 2. On ajoute 180 pour que la face du détecteur regarde vers (0,0,0).
-# 3. 'current_angle' doit correspondre au sens de translation.
 
 
 # --- Digitizer (Hits & Energy Windows) ---
