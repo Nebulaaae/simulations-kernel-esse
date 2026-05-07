@@ -53,15 +53,17 @@ phantom.user_info.translation = [[0, 0, 0]]
 
 # --- Configuration SPECT ---
 spect, colli, crystal = spect_ge_nm670.add_spect_head(sim, "spect", "megp")
-rad = 45 * cm
+rad = 40 * cm
 
 pos_x = rad * np.sin(np.radians(current_angle))
 pos_y = rad * np.cos(np.radians(current_angle))
-spect.user_info.translation = [[-pos_x, pos_y, 0]]
+# spect.user_info.translation = [[-pos_x, pos_y, 0]]
 
 # base_tilt = R.from_euler('x', 90, degrees=True)
 # orbit_rot = R.from_euler('z', current_angle, degrees=True)
 # rot_matrix = (orbit_rot * base_tilt).as_matrix()
+
+spect.user_info.translation = [[pos_x, 0, pos_y]]
 
 rot_matrix = R.from_euler('y', 180 + current_angle, degrees=True).as_matrix()
 
