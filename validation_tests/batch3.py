@@ -14,12 +14,12 @@ args_cmd = parser.parse_args()
 # --- CONFIGURATION ---
 IMG_SIZE = 128
 PIXEL_SIZE = 4.4  # cm 
-NB_ANGLES = 1
-SIM_PAR_ANGLE = 10
+NB_ANGLES = 32
+SIM_PAR_ANGLE = 3
 ROR = 40.0              
 ANGLES = np.linspace(0, 360, NB_ANGLES, endpoint=False)
 
-BASE_ACTIVITY_MBq = 0.1
+BASE_ACTIVITY_MBq = 10
 
 INPUT_FOLDER = os.path.abspath("./nema_final_sim")
 OUTPUT_FOLDER = os.path.abspath("./output_spect")
