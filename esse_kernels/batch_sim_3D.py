@@ -27,79 +27,115 @@ def get_mu_water(energy_kev):
     return np.interp(energy_kev, energies, mus)
 
 # --- CONFIGURATION DES SLICES ---
-NB_SLICES = 20
-RUNS_PER_SLICE = 5
+NB_SLICES = 10
+RUNS_PER_SLICE = 8
 Z_POSITIONS = np.linspace(-140, 140, NB_SLICES) 
+
+DEPTHS_CM = (150.0 - Z_POSITIONS) / 10.0
 
 CHECKPOINT_INTERVAL = 10
 checkpoint_path = os.path.join(OUTPUT_FOLDER, "esse_kernels_checkpoint.npy.tmp.npy")
 print(f"Checkpoint path: {checkpoint_path}")
 print(os._exists(checkpoint_path))
 
-def filter_and_extract(depth):
+def filter_and_extract(source_x_mm=0.0, source_y_mm=0.0):
     scatter_path = os.path.join(OUTPUT_FOLDER, "phantom_scatters.root")
     spect_path = os.path.join(OUTPUT_FOLDER, "spect.root")
     
     if not (os.path.exists(scatter_path) and os.path.exists(spect_path)):
-        return None, 0
+        return None, None, 0
 
     with uproot.open(spect_path) as f:
         tree = f["peak208"]
-        df_det = tree.arrays(["EventID", "Weight"], library="pd")
         total_photons = tree.num_entries
+        if total_photons == 0:
+            return None, None, 0
+        
+        det_arrays = tree.arrays(["EventID", "Weight"], library="np")
 
-    detected_ids = df_det[['EventID', 'Weight']].drop_duplicates('EventID')
-    print(f"Total photons detected: {total_photons}, Unique EventIDs: {len(detected_ids)}")
+    df_det = pd.DataFrame(det_arrays).drop_duplicates('EventID').set_index('EventID')
     waterbox_path = f"{scatter_path}:Hits_Waterbox"
     extracted_points = []
     
-    for chunk in uproot.iterate(waterbox_path, ["EventID", 'PostPosition_X', 'PostPosition_Y', 
-                                                'PostPosition_Z', "ProcessDefinedStep", "KineticEnergy"], library="pd"):
-        chunk['ProcessDefinedStep'] = chunk['ProcessDefinedStep'].astype(str)
-        mask = (chunk['ProcessDefinedStep'].str.contains('compt')) & (chunk['EventID'].isin(detected_ids['EventID']))#& (np.abs(chunk['PostDirection_Z']) > 0.999)
-        useful = chunk[mask]
+    branches_to_read = [
+        "EventID", 'PostPosition_X', 'PostPosition_Y', 'PostPosition_Z', 
+        "ProcessDefinedStep", "KineticEnergy"
+    ]
+    
+    with uproot.open(scatter_path) as f_scat:
+        tree_water = f_scat["Hits_Waterbox"]
+        for chunk_dict in tree_water.iterate(branches_to_read, step_size="100MB", library="np"):
+            valid_event_mask = np.isin(chunk_dict["EventID"], df_det.index.values)
+            if not np.any(valid_event_mask):
+                continue
+
+            event_ids = chunk_dict["EventID"][valid_event_mask]
+            proc_steps = chunk_dict["ProcessDefinedStep"][valid_event_mask].astype(str) 
+            compt_mask = np.char.find(proc_steps, 'compt') != -1
+            
+            if not np.any(compt_mask):
+                continue
+
+            useful_df = pd.DataFrame({
+                'EventID': event_ids[compt_mask],
+                'PostPosition_X': chunk_dict['PostPosition_X'][valid_event_mask][compt_mask],
+                'PostPosition_Y': chunk_dict['PostPosition_Y'][valid_event_mask][compt_mask],
+                'PostPosition_Z': chunk_dict['PostPosition_Z'][valid_event_mask][compt_mask],
+                'KineticEnergy': chunk_dict['KineticEnergy'][valid_event_mask][compt_mask]
+            })
+
+            if useful_df.empty:
+                continue
         
-        if not useful.empty:
-            last_hits = useful.groupby('EventID').tail(1)
-            merged = last_hits.merge(df_det, on='EventID', how='inner')
-            if not merged.empty:
-                merged['mu_i'] = get_mu_water(merged['KineticEnergy'] * 1000)
+            last_hits = useful_df.groupby('EventID', sort=False).tail(1)
+            last_hits = last_hits.set_index('EventID')
+            last_hits['Weight'] = df_det['Weight']
+            
+                # Énergie en keV et évaluation de mu après diffusion
+            energy_kev = last_hits['KineticEnergy'] * 1000.0
+            last_hits['mu_i'] = get_mu_water(energy_kev)
                 
-                merged['delta_mu_weighted'] = (merged['mu_i'] - MU_WATER) * merged['Weight']
-                merged['ESSE_Weight'] = merged['Weight'] * np.exp(MU_WATER * (150.0 - merged['PostPosition_Z']) / 10.0)
+                # Distance en Z par rapport à la face de sortie / détecteur (cm)
+            d_photon = (150.0 - last_hits['PostPosition_Z']) / 10.0
                 
-                extracted_points.append(merged)
+                # Calcul du poids ESSE désatténué : w_i = weight * exp(mu0 * depth) [Slide 29]
+            last_hits['ESSE_Weight'] = last_hits['Weight'] * np.exp(MU_WATER * d_photon)
+            last_hits['ESSE_Mu_Weight'] = last_hits['mu_i'] * last_hits['ESSE_Weight']
+                
+                # Coordonnées relatives à la source (recentrage en mm)
+            last_hits['Rel_X'] = last_hits['PostPosition_X'] - source_x_mm
+            last_hits['Rel_Y'] = last_hits['PostPosition_Y'] - source_y_mm
+                
+            extracted_points.append(last_hits)
 
     if not extracted_points:
         return None, None, total_photons
 
     df_final = pd.concat(extracted_points)
-    limit = (KRNL_SIZE * PIXEL_SIZE * 10) / 2
+    limit_mm = (KRNL_SIZE * PIXEL_SIZE * 10) / 2.0
     
-    # Dénominateur : Somme des poids de diffusion (le futur pfKrnl)
+    # Noyau de diffusion (pfKrnl)
     h_weight_sum, _, _ = np.histogram2d(
-        df_final['PostPosition_X'], df_final['PostPosition_Y'],
-        bins=KRNL_SIZE, range=[[-limit, limit], [-limit, limit]],
+        df_final['Rel_X'], df_final['Rel_Y'],
+        bins=KRNL_SIZE, range=[[-limit_mm, limit_mm], [-limit_mm, limit_mm]],
         weights=df_final['ESSE_Weight']
     ) 
 
-    # Numérateur : Somme des (delta_mu * poids)
-    h_delta_mu_sum, _, _ = np.histogram2d(
-        df_final['PostPosition_X'], df_final['PostPosition_Y'],
-        bins=KRNL_SIZE, range=[[-limit, limit], [-limit, limit]],
-        weights=df_final['delta_mu_weighted']
+    # Noyau d'atténuation pondéré
+    h_mu_weight_sum, _, _ = np.histogram2d(
+        df_final['Rel_X'], df_final['Rel_Y'],
+        bins=KRNL_SIZE, range=[[-limit_mm, limit_mm], [-limit_mm, limit_mm]],
+        weights=df_final['ESSE_Mu_Weight']
     )
 
-    return h_weight_sum, h_delta_mu_sum, total_photons
+    return h_weight_sum, h_mu_weight_sum, total_photons
 
 # --- INITIALISATION ---
 # final_kernels = np.zeros((NB_SLICES, KRNL_SIZE, KRNL_SIZE)) # todo : je crois que ça doit être stocké comme x, z, y (voir slide 39)
 final_kernels = np.zeros((KRNL_SIZE, NB_SLICES, KRNL_SIZE))
 amu_kernels_accumulation = np.zeros((KRNL_SIZE, NB_SLICES, KRNL_SIZE))
 final_amu_kernels = np.zeros((KRNL_SIZE, NB_SLICES, KRNL_SIZE))
-# --- INITIALISATION & REPRISE ---
-final_kernels = np.zeros((KRNL_SIZE, NB_SLICES, KRNL_SIZE))
-amu_kernels_accumulation = np.zeros((KRNL_SIZE, NB_SLICES, KRNL_SIZE))
+
 start_slice = 0
 start_run = 0
 
@@ -130,7 +166,7 @@ else:
     # --- NORMALISATION DANS L'AIR ---
     print("\n>>> Phase de normalisation : Simulation dans l'AIR")
     nb_air_total = 0
-    AIR_RUNS = 1   # Plusieurs runs pour réduire la variance statistique
+    AIR_RUNS = 10   # Plusieurs runs pour réduire la variance statistique
 
     for a in range(AIR_RUNS):
         env = os.environ.copy()
@@ -246,6 +282,7 @@ if norm_factor > 0:
     final_kernels /= (norm_factor)
     np.save(os.path.join(OUTPUT_FOLDER, "esse_kernels_3d.npy"), final_kernels)
     np.save(os.path.join(OUTPUT_FOLDER, "esse_amu_kernels_3d.npy"), final_amu_kernels)
+    np.save(os.path.join(OUTPUT_FOLDER, "esse_depths.npy"), DEPTHS_CM)
     print("\nKernels ESSE 3D générés et normalisés avec succès.")
 else:
     print("\nErreur : Normalisation impossible (norm_factor = 0)")

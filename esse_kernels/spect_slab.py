@@ -17,7 +17,7 @@ if __name__ == "__main__":
     sim.visu = False
     sim.visu_type = "vrml"
     # sim.visu_type = "qt"
-    sim.number_of_threads = 6
+    sim.number_of_threads = 8
     sim.random_seed = "auto"
     sim.progress_bar = True
     sim.output_dir = "./output"
@@ -80,18 +80,18 @@ if __name__ == "__main__":
     # Hits
     hc = sim.add_actor("DigitizerHitsCollectionActor", f"Hits_{crystal.name}")
     hc.attached_to = crystal.name
-    hc.output_filename = "spect.root"
+    # hc.output_filename = "spect.root"
     hc.attributes = [
         "EventID",
         "Weight",  
-        "TrackID",
+        # "TrackID",
         "PostPosition",
         "TotalEnergyDeposit",
         "PreStepUniqueVolumeID",
         "GlobalTime",
-        "LocalTime",
-        "StepLength",
-        "TrackLength",
+        # "LocalTime",
+        # "StepLength",
+        # "TrackLength",
     ]
     hc.filter = ~F.UnscatteredPrimaryFlag
     # list of attributes :https://opengate-python.readthedocs.io/en/latest/user_guide.html#actors-and-filters
@@ -101,22 +101,23 @@ if __name__ == "__main__":
     sc.attached_to = hc.attached_to
     sc.input_digi_collection = hc.name
     sc.policy = "EnergyWinnerPosition"
-    sc.output_filename = hc.output_filename
+    # sc.output_filename = hc.output_filename
 
     # energy windows
     cc = sim.add_actor("DigitizerEnergyWindowsActor", f"EnergyWindows_{crystal.name}")
     cc.attached_to = sc.attached_to
     cc.input_digi_collection = sc.name
     cc.channels = channels
-    cc.output_filename = hc.output_filename
+    # cc.output_filename = hc.output_filename
+    cc.output_filename = "spect.root"
 
     # projection image
-    proj = sim.add_actor("DigitizerProjectionActor", f"Projection_{crystal.name}")
-    proj.attached_to = cc.attached_to
-    proj.input_digi_collections = [x["name"] for x in cc.channels]
-    proj.spacing = [5 * mm, 5 * mm]
-    proj.size = [128, 128]
-    proj.output_filename = "projection1.mhd"
+    # proj = sim.add_actor("DigitizerProjectionActor", f"Projection_{crystal.name}")
+    # proj.attached_to = cc.attached_to
+    # proj.input_digi_collections = [x["name"] for x in cc.channels]
+    # proj.spacing = [5 * mm, 5 * mm]
+    # proj.size = [128, 128]
+    # proj.output_filename = "projection1.mhd"
 
     # Acteur pour récupérer les diffusions compton dans le fantôme
     phantom_hits = sim.add_actor("DigitizerHitsCollectionActor", "Hits_Waterbox")
@@ -171,11 +172,11 @@ if __name__ == "__main__":
     # source.direction.type = "momentum"
     # source.direction.momentum = [0, 1, 0]
     if sim.visu:
-        sim.number_of_threads = 1
+        # sim.number_of_threads = 1
         source.activity = 100 * Bq
     else:
-        sim.number_of_threads = 8
-        source.activity = (10 * MBq) / sim.number_of_threads 
+        # sim.number_of_threads = 8
+        source.activity = (2 * MBq)
 
 
     # add stat actor
